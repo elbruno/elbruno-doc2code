@@ -125,10 +125,8 @@ window.pipelineCanvas = (function () {
 
             // arrowhead triangle at the end
             var arrowLen = 8;
-            var dx = endX - midX;
-            var dy = endY - endY; // horizontal approach
             var angle = Math.atan2(endY - startY, endX - startX);
-            if (Math.abs(endX - startX) > 10) angle = 0; // mostly horizontal
+            if (Math.abs(endX - startX) > 10) angle = 0; // mostly horizontal edges
             var ax1 = endX - arrowLen * Math.cos(angle - 0.4);
             var ay1 = endY - arrowLen * Math.sin(angle - 0.4);
             var ax2 = endX - arrowLen * Math.cos(angle + 0.4);
