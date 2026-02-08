@@ -1,0 +1,607 @@
+@* elbruno.Doc2Code — Pipeline Designer: visual DAG editor for agent pipelines. *@
+@page "/pipeline-designer"
+@using elbruno.Doc2Code.Core.Models
+@using elbruno.Doc2Code.Core.Pipeline
+@using elbruno.Doc2Code.Web.Services
+@inject SettingsApiClient _settingsClient
+@inject IJSRuntime JS
+
+<PageTitle>Pipeline Designer</PageTitle>
+
+<style>
+    /* ── Designer layout ── */
+    .pd-layout {
+        display: grid;
+        grid-template-columns: 240px 1fr 280px;
+        gap: 0;
+        height: calc(100vh - 5.5rem);
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    .pd-sidebar {
+        background: #0d1117;
+        border-right: 1px solid #1a4d2e;
+        padding: 1rem 0.8rem;
+        overflow-y: auto;
+    }
+    .pd-sidebar-right {
+        background: #0d1117;
+        border-left: 1px solid #1a4d2e;
+        padding: 1rem 0.8rem;
+        overflow-y: auto;
+    }
+    .pd-center {
+        background: #090b0d;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .pd-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        padding: 0.6rem 0.8rem;
+        background: #0d1117;
+        border-bottom: 1px solid #1a4d2e;
+    }
+    .pd-toolbar-btn {
+        background: transparent;
+        color: #33ff77;
+        border: 1px solid #1a4d2e;
+        font-family: inherit;
+        font-size: 0.72rem;
+        padding: 0.3rem 0.65rem;
+        border-radius: 3px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        transition: background 0.15s, border-color 0.15s;
+        white-space: nowrap;
+    }
+    .pd-toolbar-btn:hover:not(:disabled) {
+        background: rgba(51, 255, 119, 0.12);
+        border-color: #33ff77;
+    }
+    .pd-toolbar-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+    .pd-toolbar-btn.pd-btn-danger {
+        color: #ff6b6b;
+        border-color: #6b1616;
+    }
+    .pd-toolbar-btn.pd-btn-danger:hover:not(:disabled) {
+        background: rgba(255, 107, 107, 0.12);
+        border-color: #ff6b6b;
+    }
+    .pd-toolbar-btn.pd-btn-accent {
+        color: #0d1117;
+        background: #33ff77;
+        border-color: #33ff77;
+        font-weight: 700;
+    }
+    .pd-toolbar-btn.pd-btn-accent:hover:not(:disabled) {
+        background: #28cc5f;
+    }
+    .pd-toolbar-sep {
+        width: 1px;
+        background: #1a4d2e;
+        margin: 0 0.2rem;
+        align-self: stretch;
+    }
+
+    /* ── Canvas area ── */
+    .pd-canvas-wrap {
+        flex: 1;
+        position: relative;
+        overflow: auto;
+        min-height: 300px;
+    }
+    #pd-canvas-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+        min-width: 900px;
+    }
+    .pd-svg-overlay {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .pd-edge-path {
+        fill: none;
+        stroke: #1a6b3a;
+        stroke-width: 2;
+    }
+    .pd-edge-arrow {
+        fill: #1a6b3a;
+        stroke: none;
+    }
+
+    /* ── Canvas nodes ── */
+    .pd-node {
+        position: absolute;
+        min-width: 130px;
+        padding: 0.55rem 0.85rem;
+        background: #161b22;
+        border: 1.5px solid #1a4d2e;
+        border-radius: 0.35rem;
+        color: #33ff77;
+        font-size: 0.8rem;
+        cursor: grab;
+        z-index: 1;
+        user-select: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .pd-node:hover {
+        border-color: #33ff77;
+        box-shadow: 0 0 6px rgba(51, 255, 119, 0.25);
+    }
+    .pd-node-selected {
+        border-color: #33ff77 !important;
+        box-shadow: 0 0 10px rgba(51, 255, 119, 0.45) !important;
+    }
+    .pd-node-label {
+        font-weight: 600;
+        letter-spacing: 0.03em;
+    }
+    .pd-retry-badge {
+        display: inline-block;
+        margin-left: 0.4rem;
+        font-size: 0.65rem;
+        color: #ff9933;
+        vertical-align: middle;
+    }
+
+    /* ── Sidebar elements ── */
+    .pd-section-title {
+        color: #33ff77;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.6rem;
+    }
+    .pd-group-label {
+        color: #6e7681;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 0.8rem 0 0.35rem;
+        padding-bottom: 0.2rem;
+        border-bottom: 1px solid #1a4d2e;
+    }
+    .pd-agent-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid transparent;
+        border-radius: 3px;
+        font-size: 0.78rem;
+        color: #c9d1d9;
+        cursor: pointer;
+        transition: background 0.12s, border-color 0.12s;
+        margin-bottom: 0.2rem;
+    }
+    .pd-agent-item:hover {
+        background: rgba(51, 255, 119, 0.06);
+        border-color: #1a4d2e;
+    }
+    .pd-agent-key {
+        color: #6e7681;
+        font-size: 0.65rem;
+    }
+    .pd-badge-builtin {
+        font-size: 0.58rem;
+        padding: 0.1rem 0.35rem;
+        border-radius: 2px;
+        background: #166b34;
+        color: #e0ffe8;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    /* ── Properties panel ── */
+    .pd-prop-label {
+        color: #33ff77;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.2rem;
+        margin-top: 0.7rem;
+    }
+    .pd-prop-label:first-child { margin-top: 0; }
+    .pd-prop-value {
+        color: #c9d1d9;
+        font-size: 0.78rem;
+        word-break: break-all;
+    }
+    .pd-prop-input {
+        background: #161b22;
+        border: 1px solid #1a4d2e;
+        color: #33ff77;
+        font-family: inherit;
+        font-size: 0.78rem;
+        padding: 0.3rem 0.5rem;
+        border-radius: 3px;
+        width: 100%;
+    }
+    .pd-prop-input:focus {
+        border-color: #33ff77;
+        outline: none;
+        box-shadow: 0 0 0 0.15rem rgba(51, 255, 119, 0.2);
+    }
+    .pd-prop-range {
+        width: 100%;
+        accent-color: #33ff77;
+    }
+    .pd-edge-row {
+        display: flex;
+        gap: 0.3rem;
+        align-items: center;
+        font-size: 0.72rem;
+        color: #c9d1d9;
+        padding: 0.2rem 0;
+    }
+    .pd-edge-arrow-label { color: #1a6b3a; }
+
+    /* ── Status bar ── */
+    .pd-status-bar {
+        padding: 0.35rem 0.8rem;
+        font-size: 0.7rem;
+        border-top: 1px solid #1a4d2e;
+        background: #0d1117;
+        min-height: 1.6rem;
+    }
+    .pd-status-ok { color: #33ff77; }
+    .pd-status-err { color: #ff6b6b; }
+
+    /* ── Validation panel ── */
+    .pd-validation-box {
+        margin-top: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 3px;
+        font-size: 0.72rem;
+    }
+    .pd-val-ok {
+        background: #0d2818;
+        border: 1px solid #33ff77;
+        color: #33ff77;
+    }
+    .pd-val-err {
+        background: #2d1117;
+        border: 1px solid #c00;
+        color: #ff6b6b;
+    }
+    .pd-val-warn { color: #d4c85a; }
+
+    /* ── Import textarea ── */
+    .pd-import-area {
+        background: #161b22;
+        border: 1px solid #1a4d2e;
+        color: #33ff77;
+        font-family: inherit;
+        font-size: 0.72rem;
+        width: 100%;
+        min-height: 6rem;
+        padding: 0.4rem;
+        border-radius: 3px;
+        resize: vertical;
+    }
+    .pd-import-area:focus {
+        border-color: #33ff77;
+        outline: none;
+    }
+
+    /* ── Pipeline dropdown ── */
+    .pd-pipeline-select {
+        background: #161b22;
+        border: 1px solid #1a4d2e;
+        color: #33ff77;
+        font-family: inherit;
+        font-size: 0.72rem;
+        padding: 0.3rem 0.5rem;
+        border-radius: 3px;
+    }
+    .pd-pipeline-select:focus {
+        border-color: #33ff77;
+        outline: none;
+    }
+
+    /* ── Small new-agent button ── */
+    .pd-btn-sm {
+        background: transparent;
+        color: #33ff77;
+        border: 1px solid #1a4d2e;
+        font-family: inherit;
+        font-size: 0.68rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    .pd-btn-sm:hover {
+        background: rgba(51, 255, 119, 0.1);
+        border-color: #33ff77;
+    }
+</style>
+
+@* ── Page header ── *@
+<div class="d2c-wrap" style="padding: 0.8rem 1rem 0;">
+    <h3 style="color: #33ff77; font-family: 'Cascadia Code', monospace; font-size: 1.2rem; margin-bottom: 0.4rem;">
+        Pipeline Designer
+    </h3>
+</div>
+
+@if (_loadFailed)
+{
+    <div class="d2c-wrap">
+        <div style="background: #2d1117; border: 1px solid #c00; color: #ff6b6b; padding: 1rem; border-radius: 4px; font-family: monospace;">
+            <strong>Error:</strong> Could not load pipeline data from the backend.
+        </div>
+    </div>
+}
+else if (_activePipeline is null)
+{
+    <div class="d2c-wrap">
+        <span style="color: #6e7681; font-family: monospace;">Loading pipelines&#8230;</span>
+    </div>
+}
+else
+{
+    <div class="pd-layout">
+        @* ═══ LEFT SIDEBAR: Agent Repository ═══ *@
+        <div class="pd-sidebar">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="pd-section-title">Agents</span>
+                <button class="pd-btn-sm" @onclick="OpenNewAgentModal" title="Create custom agent">+ New</button>
+            </div>
+
+            @* Built-in agents *@
+            <div class="pd-group-label">Built-in</div>
+            @foreach (var agent in BuiltInAgents)
+            {
+                <div class="pd-agent-item" @onclick="() => AddAgentToCanvasAsync(agent)" title="Click to add to canvas">
+                    <div style="flex: 1; min-width: 0;">
+                        <div>@agent.DisplayName <span class="pd-badge-builtin">built-in</span></div>
+                        <div class="pd-agent-key">@agent.AgentKey</div>
+                    </div>
+                </div>
+            }
+
+            @* Custom agents *@
+            <div class="pd-group-label">Custom</div>
+            @if (!CustomAgents.Any())
+            {
+                <div style="color: #6e7681; font-size: 0.72rem; padding: 0.3rem 0.5rem;">No custom agents yet.</div>
+            }
+            @foreach (var agent in CustomAgents)
+            {
+                <div class="pd-agent-item" @onclick="() => AddAgentToCanvasAsync(agent)" title="Click to add to canvas">
+                    <div style="flex: 1; min-width: 0;">
+                        <div>
+                            @agent.DisplayName
+                            <button class="pd-btn-sm" style="float: right; font-size: 0.6rem;" @onclick:stopPropagation="true"
+                                    @onclick="() => OpenEditAgentModal(agent)">&#x270E;</button>
+                        </div>
+                        <div class="pd-agent-key">@agent.AgentKey</div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* ═══ CENTER: Pipeline Canvas ═══ *@
+        <div class="pd-center">
+            @* Toolbar *@
+            <div class="pd-toolbar">
+                <button class="pd-toolbar-btn pd-btn-accent" @onclick="SavePipelineAsync">&#x1F4BE; Save</button>
+
+                <select class="pd-pipeline-select" @onchange="OnPipelineDropdownChanged">
+                    @foreach (var p in _pipelines)
+                    {
+                        <option value="@p.Id" selected="@(p.Id == _activePipeline.Id)">
+                            @p.Name @(p.IsActive ? " ★" : "")
+                        </option>
+                    }
+                </select>
+
+                <div class="pd-toolbar-sep"></div>
+
+                <button class="pd-toolbar-btn" @onclick="ClonePipelineAsync">Clone</button>
+                <button class="pd-toolbar-btn pd-btn-danger" @onclick="DeletePipelineAsync"
+                        disabled="@(_activePipeline.IsDefault)">Delete</button>
+                <button class="pd-toolbar-btn" @onclick="ActivatePipelineAsync">Set Active</button>
+
+                <div class="pd-toolbar-sep"></div>
+
+                <button class="pd-toolbar-btn" @onclick="ValidatePipeline">&#x2713; Validate</button>
+                <button class="pd-toolbar-btn" @onclick="AutoLayoutAsync">Layout</button>
+
+                <div class="pd-toolbar-sep"></div>
+
+                <button class="pd-toolbar-btn" @onclick="UndoAsync" disabled="@(!HasUndoHistory)" title="Undo">&#x21A9;</button>
+                <button class="pd-toolbar-btn" @onclick="RedoAsync" disabled="@(!HasRedoHistory)" title="Redo">&#x21AA;</button>
+
+                <div class="pd-toolbar-sep"></div>
+
+                <button class="pd-toolbar-btn" @onclick="ExportPipelineJsonAsync">Export JSON</button>
+                <button class="pd-toolbar-btn" @onclick="() => _showImportInput = !_showImportInput">Import JSON</button>
+            </div>
+
+            @if (_showImportInput)
+            {
+                <div style="padding: 0.5rem 0.8rem; background: #0d1117; border-bottom: 1px solid #1a4d2e;">
+                    <textarea class="pd-import-area" @bind="_importJson" placeholder="Paste pipeline JSON here..."></textarea>
+                    <div class="d-flex gap-2 mt-2">
+                        <button class="pd-toolbar-btn pd-btn-accent" @onclick="ImportPipelineJsonAsync">Import</button>
+                        <button class="pd-toolbar-btn" @onclick="() => _showImportInput = false">Cancel</button>
+                    </div>
+                </div>
+            }
+
+            @* Canvas *@
+            <div class="pd-canvas-wrap">
+                <div id="@CanvasContainerId"></div>
+            </div>
+
+            @* Validation results *@
+            @if (_validationResult is not null)
+            {
+                <div class="pd-validation-box @(_validationResult.IsValid ? "pd-val-ok" : "pd-val-err")"
+                     style="margin: 0 0.8rem 0.5rem;">
+                    @if (_validationResult.IsValid)
+                    {
+                        <span>&#x2713; Pipeline is valid.</span>
+                    }
+                    else
+                    {
+                        <div><strong>Errors:</strong></div>
+                        @foreach (var err in _validationResult.Errors)
+                        {
+                            <div>&bull; @err</div>
+                        }
+                    }
+                    @if (_validationResult.Warnings.Count > 0)
+                    {
+                        <div class="pd-val-warn" style="margin-top: 0.3rem;"><strong>Warnings:</strong></div>
+                        @foreach (var warn in _validationResult.Warnings)
+                        {
+                            <div class="pd-val-warn">&bull; @warn</div>
+                        }
+                    }
+                </div>
+            }
+
+            @* Status bar *@
+            <div class="pd-status-bar @(_statusIsError ? "pd-status-err" : "pd-status-ok")">
+                @_statusMessage
+            </div>
+        </div>
+
+        @* ═══ RIGHT SIDEBAR: Properties Inspector ═══ *@
+        <div class="pd-sidebar-right">
+            <span class="pd-section-title">Properties</span>
+
+            @if (_selectedStep is null)
+            {
+                <div style="color: #6e7681; font-size: 0.75rem; margin-top: 0.8rem;">
+                    Select a step on the canvas to inspect its properties.
+                </div>
+            }
+            else
+            {
+                @* Agent info *@
+                <div class="pd-prop-label">Agent</div>
+                <div class="pd-prop-value">@(_selectedStepAgent?.DisplayName ?? _selectedStep.AgentKey)</div>
+
+                <div class="pd-prop-label">Step ID</div>
+                <div class="pd-prop-value" style="font-size: 0.65rem; color: #6e7681;">@_selectedStep.StepId</div>
+
+                @if (_selectedStepAgent is not null)
+                {
+                    <div class="pd-prop-label">Model Override</div>
+                    <div class="pd-prop-value">@_selectedStepAgent.ModelId</div>
+
+                    <div class="pd-prop-label">Temperature</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" class="pd-prop-range" min="0" max="1" step="0.05"
+                               value="@_selectedStepAgent.Temperature.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                               disabled />
+                        <span class="pd-prop-value" style="min-width: 2rem; text-align: right;">
+                            @_selectedStepAgent.Temperature.ToString("F2")
+                        </span>
+                    </div>
+                }
+
+                @* Retry policy *@
+                <div class="pd-prop-label">Retry Policy</div>
+                <div class="form-check form-switch" style="margin-bottom: 0.3rem;">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           checked="@(_selectedStep.RetryPolicy is not null)"
+                           @onchange="ToggleRetryPolicy"
+                           style="background-color: #161b22; border-color: #1a4d2e;" />
+                    <label class="form-check-label" style="color: #c9d1d9; font-size: 0.72rem;">
+                        @(_selectedStep.RetryPolicy is not null ? "Enabled" : "Disabled")
+                    </label>
+                </div>
+
+                @if (_selectedStep.RetryPolicy is not null)
+                {
+                    <div style="padding-left: 0.5rem; border-left: 2px solid #1a4d2e; margin-bottom: 0.5rem;">
+                        <div class="pd-prop-label" style="font-size: 0.65rem;">Max Retries</div>
+                        <input type="number" class="pd-prop-input" style="width: 4rem;"
+                               @bind="_selectedStep.RetryPolicy.MaxRetries" min="1" max="10" />
+
+                        <div class="pd-prop-label" style="font-size: 0.65rem;">Quality Gate Field</div>
+                        <input type="text" class="pd-prop-input"
+                               @bind="_selectedStep.RetryPolicy.QualityGateField" />
+
+                        <div class="pd-prop-label" style="font-size: 0.65rem;">Acceptance Threshold</div>
+                        <input type="number" class="pd-prop-input" style="width: 4rem;"
+                               @bind="_selectedStep.RetryPolicy.AcceptanceThreshold" min="0" max="100" />
+                    </div>
+                }
+
+                @* Inbound edges *@
+                <div class="pd-prop-label">Inbound Edges</div>
+                @if (GetInboundEdges().Count == 0)
+                {
+                    <div style="color: #6e7681; font-size: 0.68rem;">None (root step)</div>
+                }
+                @foreach (var edge in GetInboundEdges())
+                {
+                    <div class="pd-edge-row">
+                        <span>@ResolveStepLabel(edge.SourceStepId)</span>
+                        <span class="pd-edge-arrow-label">&#x2192;</span>
+                        <input type="text" class="pd-prop-input" style="width: 5rem; font-size: 0.68rem;"
+                               @bind="edge.OutputKeyMapping" placeholder="key" />
+                    </div>
+                }
+
+                @* Outbound edges *@
+                <div class="pd-prop-label">Outbound Edges</div>
+                @if (GetOutboundEdges().Count == 0)
+                {
+                    <div style="color: #6e7681; font-size: 0.68rem;">None (leaf step)</div>
+                }
+                @foreach (var edge in GetOutboundEdges())
+                {
+                    <div class="pd-edge-row">
+                        <span class="pd-edge-arrow-label">&#x2192;</span>
+                        <span>@ResolveStepLabel(edge.TargetStepId)</span>
+                        <span style="color: #6e7681; font-size: 0.65rem;">(@edge.OutputKeyMapping)</span>
+                    </div>
+                }
+
+                @* Remove step button *@
+                <div style="margin-top: 1.2rem;">
+                    <button class="pd-toolbar-btn pd-btn-danger" style="width: 100%;" @onclick="RemoveSelectedStepAsync">
+                        &#x2716; Remove Step
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── Agent Editor Modal ── *@
+    @if (_showAgentModal && _editingAgent is not null)
+    {
+        <AgentEditorModal Agent="_editingAgent"
+                          OnSave="HandleAgentSavedAsync"
+                          OnCancel="CloseAgentModal" />
+    }
+}
+
+@code {
+    private async Task OnPipelineDropdownChanged(ChangeEventArgs e)
+    {
+        var selectedId = e.Value?.ToString();
+        if (string.IsNullOrEmpty(selectedId)) return;
+        var pipeline = _pipelines.Find(p => p.Id == selectedId);
+        if (pipeline is not null) await SelectPipelineAsync(pipeline);
+    }
+}
