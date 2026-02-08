@@ -10,11 +10,27 @@
 
 <style>
     /* ── Designer layout ── */
+    .pd-page {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 3.5rem);
+        margin: -1.5rem;
+        overflow: hidden;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    .pd-page-header {
+        padding: 0.6rem 1rem;
+        background: #0d1117;
+        border-bottom: 1px solid #1a4d2e;
+        flex-shrink: 0;
+    }
     .pd-layout {
         display: grid;
-        grid-template-columns: 240px 1fr 280px;
+        grid-template-columns: 200px minmax(0, 1fr) 240px;
         gap: 0;
-        height: calc(100vh - 5.5rem);
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
         font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
     }
     .pd-sidebar {
@@ -34,6 +50,7 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        min-width: 0;
     }
     .pd-toolbar {
         display: flex;
@@ -94,14 +111,13 @@
         flex: 1;
         position: relative;
         overflow: auto;
-        min-height: 300px;
+        min-height: 0;
     }
     #pd-canvas-container {
         position: relative;
-        width: 100%;
-        height: 100%;
+        width: 2400px;
+        height: 1200px;
         min-height: 600px;
-        min-width: 900px;
     }
     .pd-svg-overlay {
         position: absolute;
@@ -298,6 +314,63 @@
         outline: none;
     }
 
+    /* ── Bookend node styles ── */
+    .pd-node-bookend {
+        border-style: dashed;
+        border-color: #1a6b3a;
+        background: #0a1a10;
+    }
+    .pd-node-bookend .pd-node-label {
+        color: #66ffaa;
+    }
+    .pd-bookend-badge {
+        font-size: 0.55rem;
+        padding: 0.05rem 0.3rem;
+        border-radius: 2px;
+        background: #0d3320;
+        color: #66ffaa;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+        margin-left: 0.3rem;
+    }
+
+    /* ── Connect mode ── */
+    .pd-toolbar-btn.pd-btn-connect-active {
+        color: #0d1117;
+        background: #d4c85a;
+        border-color: #d4c85a;
+        font-weight: 700;
+    }
+    .pd-toolbar-btn.pd-btn-connect-active:hover {
+        background: #bfb44d;
+    }
+    .pd-connect-hint {
+        color: #d4c85a;
+        font-size: 0.68rem;
+        padding: 0.25rem 0.8rem;
+        background: rgba(212, 200, 90, 0.08);
+        border-bottom: 1px solid #1a4d2e;
+    }
+
+    /* ── Edge delete button ── */
+    .pd-edge-delete {
+        background: transparent;
+        border: 1px solid #6b1616;
+        color: #ff6b6b;
+        font-size: 0.6rem;
+        padding: 0.1rem 0.3rem;
+        border-radius: 2px;
+        cursor: pointer;
+        line-height: 1;
+        margin-left: 0.2rem;
+        flex-shrink: 0;
+    }
+    .pd-edge-delete:hover {
+        background: rgba(255, 107, 107, 0.15);
+        border-color: #ff6b6b;
+    }
+
     /* ── Pipeline dropdown ── */
     .pd-pipeline-select {
         background: #161b22;
@@ -330,16 +403,17 @@
     }
 </style>
 
-@* ── Page header ── *@
-<div class="d2c-wrap" style="padding: 0.8rem 1rem 0;">
-    <h3 style="color: #33ff77; font-family: 'Cascadia Code', monospace; font-size: 1.2rem; margin-bottom: 0.4rem;">
-        Pipeline Designer
-    </h3>
-</div>
+@* ── Page container ── *@
+<div class="pd-page">
+    <div class="pd-page-header">
+        <h3 style="color: #33ff77; font-size: 1.2rem; margin: 0;">
+            Pipeline Designer
+        </h3>
+    </div>
 
 @if (_loadFailed)
 {
-    <div class="d2c-wrap">
+    <div style="padding: 1rem;">
         <div style="background: #2d1117; border: 1px solid #c00; color: #ff6b6b; padding: 1rem; border-radius: 4px; font-family: monospace;">
             <strong>Error:</strong> Could not load pipeline data from the backend.
         </div>
@@ -347,7 +421,7 @@
 }
 else if (_activePipeline is null)
 {
-    <div class="d2c-wrap">
+    <div style="padding: 1rem;">
         <span style="color: #6e7681; font-family: monospace;">Loading pipelines&#8230;</span>
     </div>
 }
@@ -363,7 +437,7 @@ else
 
             @* Built-in agents *@
             <div class="pd-group-label">Built-in</div>
-            @foreach (var agent in BuiltInAgents)
+            @foreach (var agent in BuiltInAgents.Where(a => !a.IsBookend))
             {
                 <div class="pd-agent-item" @onclick="() => AddAgentToCanvasAsync(agent)" title="Click to add to canvas">
                     <div style="flex: 1; min-width: 0;">
@@ -423,6 +497,12 @@ else
 
                 <div class="pd-toolbar-sep"></div>
 
+                <button class="pd-toolbar-btn @(_isConnectMode ? "pd-btn-connect-active" : "")" @onclick="ToggleConnectMode" title="Toggle connect mode to create edges between steps">
+                    @(_isConnectMode ? "\u2716 Cancel" : "\u2194 Connect")
+                </button>
+
+                <div class="pd-toolbar-sep"></div>
+
                 <button class="pd-toolbar-btn" @onclick="UndoAsync" disabled="@(!HasUndoHistory)" title="Undo">&#x21A9;</button>
                 <button class="pd-toolbar-btn" @onclick="RedoAsync" disabled="@(!HasRedoHistory)" title="Redo">&#x21AA;</button>
 
@@ -431,6 +511,20 @@ else
                 <button class="pd-toolbar-btn" @onclick="ExportPipelineJsonAsync">Export JSON</button>
                 <button class="pd-toolbar-btn" @onclick="() => _showImportInput = !_showImportInput">Import JSON</button>
             </div>
+
+            @if (_isConnectMode)
+            {
+                <div class="pd-connect-hint">
+                    @if (_connectSourceStepId is null)
+                    {
+                        <span>&#x1F517; Click a source step to start the connection&hellip;</span>
+                    }
+                    else
+                    {
+                        <span>&#x1F517; Source: <strong>@ResolveStepLabel(_connectSourceStepId)</strong> &mdash; now click the target step, or press Esc to cancel.</span>
+                    }
+                </div>
+            }
 
             @if (_showImportInput)
             {
@@ -557,8 +651,10 @@ else
                     <div class="pd-edge-row">
                         <span>@ResolveStepLabel(edge.SourceStepId)</span>
                         <span class="pd-edge-arrow-label">&#x2192;</span>
-                        <input type="text" class="pd-prop-input" style="width: 5rem; font-size: 0.68rem;"
+                        <input type="text" class="pd-prop-input" style="width: 4.5rem; font-size: 0.68rem;"
                                @bind="edge.OutputKeyMapping" placeholder="key" />
+                        <button class="pd-edge-delete" title="Remove this edge"
+                                @onclick="() => RemoveEdgeAsync(edge)">&#x2716;</button>
                     </div>
                 }
 
@@ -574,14 +670,30 @@ else
                         <span class="pd-edge-arrow-label">&#x2192;</span>
                         <span>@ResolveStepLabel(edge.TargetStepId)</span>
                         <span style="color: #6e7681; font-size: 0.65rem;">(@edge.OutputKeyMapping)</span>
+                        <button class="pd-edge-delete" title="Remove this edge"
+                                @onclick="() => RemoveEdgeAsync(edge)">&#x2716;</button>
                     </div>
                 }
 
+                @* Add connection button *@
+                <div style="margin-top: 0.8rem;">
+                    <button class="pd-toolbar-btn" style="width: 100%; font-size: 0.68rem;" @onclick="StartConnectFromSelected">
+                        &#x2194; Add Connection From This Step
+                    </button>
+                </div>
+
                 @* Remove step button *@
                 <div style="margin-top: 1.2rem;">
-                    <button class="pd-toolbar-btn pd-btn-danger" style="width: 100%;" @onclick="RemoveSelectedStepAsync">
-                        &#x2716; Remove Step
-                    </button>
+                    @if (_selectedStep.IsBookend)
+                    {
+                        <div style="color: #6e7681; font-size: 0.7rem; text-align: center;">Bookend steps cannot be removed.</div>
+                    }
+                    else
+                    {
+                        <button class="pd-toolbar-btn pd-btn-danger" style="width: 100%;" @onclick="RemoveSelectedStepAsync">
+                            &#x2716; Remove Step
+                        </button>
+                    }
                 </div>
             }
         </div>
@@ -595,6 +707,7 @@ else
                           OnCancel="CloseAgentModal" />
     }
 }
+</div> @* end pd-page *@
 
 @code {
     private async Task OnPipelineDropdownChanged(ChangeEventArgs e)

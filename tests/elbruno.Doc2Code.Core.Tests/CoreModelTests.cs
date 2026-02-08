@@ -281,10 +281,10 @@ public class CoreModelTests
     // --- Phase 1: AgentDefinition, PipelineDefinition, PipelineDataBag, BuiltInAgentDefinitions ---
 
     [Fact]
-    public void BuiltInAgentDefinitions_Create_Returns6Agents()
+    public void BuiltInAgentDefinitions_Create_Returns8Agents()
     {
         var agents = BuiltInAgentDefinitions.Create();
-        agents.Should().HaveCount(6);
+        agents.Should().HaveCount(8);
     }
 
     [Fact]
@@ -292,7 +292,7 @@ public class CoreModelTests
     {
         var agents = BuiltInAgentDefinitions.Create();
         var keys = agents.Select(a => a.AgentKey).ToList();
-        keys.Should().BeEquivalentTo(["Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation"]);
+        keys.Should().BeEquivalentTo(["DocumentInput", "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation", "GeneratedAssets"]);
     }
 
     [Fact]
@@ -303,10 +303,11 @@ public class CoreModelTests
     }
 
     [Fact]
-    public void BuiltInAgentDefinitions_AllHaveNonEmptySystemPrompts()
+    public void BuiltInAgentDefinitions_AllHaveNonEmptySystemPrompts_ExceptBookends()
     {
         var agents = BuiltInAgentDefinitions.Create();
-        agents.Should().AllSatisfy(a => a.SystemPrompt.Should().NotBeNullOrWhiteSpace());
+        agents.Where(a => !a.IsBookend).Should().AllSatisfy(a => a.SystemPrompt.Should().NotBeNullOrWhiteSpace());
+        agents.Where(a => a.IsBookend).Should().AllSatisfy(a => a.SystemPrompt.Should().BeEmpty());
     }
 
     [Fact]
@@ -492,12 +493,16 @@ public class CoreModelTests
         {
             Steps =
             [
+                new PipelineStepDefinition { StepId = PipelineStepDefinition.DocumentInputStepId, AgentKey = "DocumentInput", IsBookend = true },
                 new PipelineStepDefinition { StepId = "S1", AgentKey = "Analyst" },
-                new PipelineStepDefinition { StepId = "S2", AgentKey = "Architect" }
+                new PipelineStepDefinition { StepId = "S2", AgentKey = "Architect" },
+                new PipelineStepDefinition { StepId = PipelineStepDefinition.GeneratedAssetsStepId, AgentKey = "GeneratedAssets", IsBookend = true }
             ],
             Edges =
             [
-                new PipelineEdge { SourceStepId = "S1", TargetStepId = "S2" }
+                new PipelineEdge { SourceStepId = PipelineStepDefinition.DocumentInputStepId, TargetStepId = "S1", OutputKeyMapping = "spec" },
+                new PipelineEdge { SourceStepId = "S1", TargetStepId = "S2", OutputKeyMapping = "analysis" },
+                new PipelineEdge { SourceStepId = "S2", TargetStepId = PipelineStepDefinition.GeneratedAssetsStepId, OutputKeyMapping = "blueprint" }
             ]
         };
         var validator = new PipelineValidator();
@@ -592,10 +597,73 @@ public class CoreModelTests
     }
 
     [Fact]
-    public void PipelineTemplates_Default_Has6Steps()
+    public void PipelineTemplates_Default_Has8Steps()
     {
         var def = PipelineTemplates.CreateDefault();
-        def.Steps.Should().HaveCount(6);
+        def.Steps.Should().HaveCount(8);
+    }
+
+    // --- Bookend Steps ---
+
+    [Fact]
+    public void BuiltInAgentDefinitions_Has2Bookends()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var bookends = agents.Where(a => a.IsBookend).ToList();
+        bookends.Should().HaveCount(2);
+        bookends.Select(a => a.AgentKey).Should().BeEquivalentTo(["DocumentInput", "GeneratedAssets"]);
+    }
+
+    [Fact]
+    public void PipelineTemplates_AllTemplatesHaveBookendSteps()
+    {
+        var templates = PipelineTemplates.CreateAll();
+        foreach (var t in templates)
+        {
+            t.Steps.Should().Contain(s => s.StepId == PipelineStepDefinition.DocumentInputStepId,
+                because: $"template '{t.Name}' must have a Document Input bookend");
+            t.Steps.Should().Contain(s => s.StepId == PipelineStepDefinition.GeneratedAssetsStepId,
+                because: $"template '{t.Name}' must have a Generated Assets bookend");
+        }
+    }
+
+    [Fact]
+    public void PipelineTemplates_BookendSteps_AreMarkedIsBookend()
+    {
+        var def = PipelineTemplates.CreateDefault();
+        var docInput = def.Steps.First(s => s.StepId == PipelineStepDefinition.DocumentInputStepId);
+        var assets = def.Steps.First(s => s.StepId == PipelineStepDefinition.GeneratedAssetsStepId);
+        docInput.IsBookend.Should().BeTrue();
+        assets.IsBookend.Should().BeTrue();
+    }
+
+    [Fact]
+    public void PipelineValidator_MissingBookends_ReturnsErrors()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var pipeline = new PipelineDefinition
+        {
+            Steps = [new PipelineStepDefinition { StepId = "S1", AgentKey = "Analyst" }]
+        };
+        var validator = new PipelineValidator();
+        var result = validator.Validate(pipeline, agents);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("Document Input"));
+        result.Errors.Should().Contain(e => e.Contains("Generated Assets"));
+    }
+
+    [Fact]
+    public void PipelineStepDefinition_IsBookend_DefaultsFalse()
+    {
+        var step = new PipelineStepDefinition();
+        step.IsBookend.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AgentDefinition_IsBookend_DefaultsFalse()
+    {
+        var def = new AgentDefinition { AgentKey = "test" };
+        def.IsBookend.Should().BeFalse();
     }
 
     // --- SettingsExportBundle ---

@@ -101,6 +101,17 @@ public sealed class PipelineValidator
         if (visited != pipeline.Steps.Count)
             errors.Add("Pipeline contains a cycle.");
 
+        // ── Bookend enforcement ──────────────────────────────────────
+        var hasDocInput = pipeline.Steps.Any(s =>
+            s.StepId.Equals(PipelineStepDefinition.DocumentInputStepId, StringComparison.OrdinalIgnoreCase));
+        var hasAssets = pipeline.Steps.Any(s =>
+            s.StepId.Equals(PipelineStepDefinition.GeneratedAssetsStepId, StringComparison.OrdinalIgnoreCase));
+
+        if (!hasDocInput)
+            errors.Add("Pipeline must contain a Document Input bookend step (entry point).");
+        if (!hasAssets)
+            errors.Add("Pipeline must contain a Generated Assets bookend step (exit point).");
+
         // Check input key satisfaction
         var stepLookup = pipeline.Steps.ToDictionary(s => s.StepId, StringComparer.OrdinalIgnoreCase);
         foreach (var step in pipeline.Steps)

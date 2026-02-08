@@ -40,6 +40,12 @@ public sealed class PipelineDefinition
 /// <summary>A single step in a pipeline, referencing an <see cref="AgentDefinition"/>.</summary>
 public sealed class PipelineStepDefinition
 {
+    /// <summary>Well-known step ID for the Document Input bookend.</summary>
+    public const string DocumentInputStepId = "step-document-input";
+
+    /// <summary>Well-known step ID for the Generated Assets bookend.</summary>
+    public const string GeneratedAssetsStepId = "step-generated-assets";
+
     /// <summary>Unique step identifier within the pipeline.</summary>
     public string StepId { get; set; } = Guid.NewGuid().ToString();
 
@@ -54,6 +60,12 @@ public sealed class PipelineStepDefinition
 
     /// <summary>Y coordinate on the designer canvas.</summary>
     public double PositionY { get; set; }
+
+    /// <summary>
+    /// True for the two fixed bookend steps (Document Input / Generated Assets).
+    /// Bookend steps cannot be removed from a pipeline.
+    /// </summary>
+    public bool IsBookend { get; set; }
 }
 
 /// <summary>Retry policy for a pipeline step with a quality gate.</summary>

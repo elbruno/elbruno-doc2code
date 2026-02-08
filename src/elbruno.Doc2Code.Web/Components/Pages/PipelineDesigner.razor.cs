@@ -32,7 +32,9 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     private AgentDefinition? _editingAgent;
     private bool _showImportInput;
     private string _importJson = "";
-
+    // ── Connect mode ────────────────────────────────────────────────────
+    private bool _isConnectMode;
+    private string? _connectSourceStepId;
     // ── Validation ──────────────────────────────────────────────────
     private PipelineValidationResult? _validationResult;
     private readonly PipelineValidator _validator = new();
@@ -139,6 +141,14 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     public void HandleNodeSelected(string stepId)
     {
         if (_activePipeline is null) return;
+
+        // If in connect mode, handle connect-mode click
+        if (_isConnectMode)
+        {
+            HandleConnectModeClick(stepId);
+            return;
+        }
+
         _selectedStep = _activePipeline.Steps.Find(s => s.StepId == stepId);
         _selectedStepAgent = _selectedStep is not null
             ? _agents.Find(a => a.AgentKey == _selectedStep.AgentKey)
@@ -150,6 +160,13 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     public void HandleNodeDeleted(string stepId)
     {
         if (_activePipeline is null) return;
+        var step = _activePipeline.Steps.Find(s => s.StepId == stepId);
+        if (step is not null && step.IsBookend)
+        {
+            ShowStatus("Bookend steps cannot be removed.", isError: true);
+            InvokeAsync(async () => { StateHasChanged(); await RenderCanvasAsync(); });
+            return;
+        }
         PushUndo();
         _activePipeline.Steps.RemoveAll(s => s.StepId == stepId);
         _activePipeline.Edges.RemoveAll(e => e.SourceStepId == stepId || e.TargetStepId == stepId);
@@ -311,6 +328,11 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     private async Task RemoveSelectedStepAsync()
     {
         if (_activePipeline is null || _selectedStep is null) return;
+        if (_selectedStep.IsBookend)
+        {
+            ShowStatus("Bookend steps cannot be removed.", isError: true);
+            return;
+        }
         PushUndo();
         var stepId = _selectedStep.StepId;
         _activePipeline.Steps.RemoveAll(s => s.StepId == stepId);
@@ -464,6 +486,87 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     {
         _statusMessage = message;
         _statusIsError = isError;
+    }
+
+    // ── Connect mode ───────────────────────────────────────────────────
+
+    private void ToggleConnectMode()
+    {
+        _isConnectMode = !_isConnectMode;
+        _connectSourceStepId = null;
+        if (_isConnectMode)
+            ShowStatus("Connect mode ON — click a source step, then a target step to create an edge.");
+        else
+            ShowStatus("Connect mode cancelled.");
+    }
+
+    private void StartConnectFromSelected()
+    {
+        if (_selectedStep is null) return;
+        _isConnectMode = true;
+        _connectSourceStepId = _selectedStep.StepId;
+        ShowStatus($"Source set: {ResolveStepLabel(_selectedStep.StepId)} — now click the target step.");
+    }
+
+    private void HandleConnectModeClick(string stepId)
+    {
+        if (_activePipeline is null) return;
+
+        if (_connectSourceStepId is null)
+        {
+            // First click: select source
+            _connectSourceStepId = stepId;
+            ShowStatus($"Source: {ResolveStepLabel(stepId)} — now click the target step.");
+            InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        // Second click: create edge
+        if (_connectSourceStepId == stepId)
+        {
+            ShowStatus("Cannot connect a step to itself. Click a different step.", isError: true);
+            InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var alreadyExists = _activePipeline.Edges.Any(e =>
+            e.SourceStepId == _connectSourceStepId && e.TargetStepId == stepId);
+        if (alreadyExists)
+        {
+            ShowStatus("This edge already exists.", isError: true);
+            _connectSourceStepId = null;
+            InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        // Resolve the source agent's output key for default mapping
+        var sourceStep = _activePipeline.Steps.Find(s => s.StepId == _connectSourceStepId);
+        var sourceAgent = sourceStep is not null ? _agents.Find(a => a.AgentKey == sourceStep.AgentKey) : null;
+
+        PushUndo();
+        _activePipeline.Edges.Add(new PipelineEdge
+        {
+            SourceStepId = _connectSourceStepId,
+            TargetStepId = stepId,
+            OutputKeyMapping = sourceAgent?.OutputKey ?? ""
+        });
+
+        ShowStatus($"Edge created: {ResolveStepLabel(_connectSourceStepId)} \u2192 {ResolveStepLabel(stepId)}");
+        _connectSourceStepId = null;
+        _isConnectMode = false;
+
+        InvokeAsync(async () => { StateHasChanged(); await RenderCanvasAsync(); });
+    }
+
+    // ── Edge management ───────────────────────────────────────────────
+
+    private async Task RemoveEdgeAsync(PipelineEdge edge)
+    {
+        if (_activePipeline is null) return;
+        PushUndo();
+        _activePipeline.Edges.Remove(edge);
+        ShowStatus($"Edge removed: {ResolveStepLabel(edge.SourceStepId)} \u2192 {ResolveStepLabel(edge.TargetStepId)}");
+        await RenderCanvasAsync();
     }
 
     private IEnumerable<AgentDefinition> BuiltInAgents => _agents.Where(a => a.IsBuiltIn);

@@ -17,33 +17,57 @@ public static class PipelineTemplates
         CreateFullQA()
     ];
 
-    /// <summary>Default pipeline: Analyst → Architect → Developer ↔ Reviewer → Testing ∥ Documentation.</summary>
+    // ── Bookend step helpers ────────────────────────────────────────
+
+    private static PipelineStepDefinition MakeDocumentInputStep(double x = 20, double y = 200) => new()
+    {
+        StepId = PipelineStepDefinition.DocumentInputStepId,
+        AgentKey = BuiltInAgentDefinitions.DocumentInputKey,
+        PositionX = x,
+        PositionY = y,
+        IsBookend = true
+    };
+
+    private static PipelineStepDefinition MakeGeneratedAssetsStep(double x = 1100, double y = 200) => new()
+    {
+        StepId = PipelineStepDefinition.GeneratedAssetsStepId,
+        AgentKey = BuiltInAgentDefinitions.GeneratedAssetsKey,
+        PositionX = x,
+        PositionY = y,
+        IsBookend = true
+    };
+
+    /// <summary>Default pipeline: DocInput → Analyst → Architect → Developer ↔ Reviewer → Testing ∥ Documentation → Assets.</summary>
     public static PipelineDefinition CreateDefault()
     {
-        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 100, PositionY = 200 };
-        var architect = new PipelineStepDefinition { StepId = "step-architect", AgentKey = "Architect", PositionX = 300, PositionY = 200 };
-        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 500, PositionY = 200 };
+        var docInput = MakeDocumentInputStep(20, 200);
+        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 200, PositionY = 200 };
+        var architect = new PipelineStepDefinition { StepId = "step-architect", AgentKey = "Architect", PositionX = 400, PositionY = 200 };
+        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 600, PositionY = 200 };
         var reviewer = new PipelineStepDefinition
         {
             StepId = "step-reviewer",
             AgentKey = "Reviewer",
-            PositionX = 700,
+            PositionX = 800,
             PositionY = 200,
             RetryPolicy = new StepRetryPolicy { MaxRetries = 2, QualityGateField = "scoreOutOf100", AcceptanceThreshold = 70 }
         };
-        var testing = new PipelineStepDefinition { StepId = "step-testing", AgentKey = "Testing", PositionX = 900, PositionY = 100 };
-        var docs = new PipelineStepDefinition { StepId = "step-docs", AgentKey = "Documentation", PositionX = 900, PositionY = 300 };
+        var testing = new PipelineStepDefinition { StepId = "step-testing", AgentKey = "Testing", PositionX = 1000, PositionY = 100 };
+        var docs = new PipelineStepDefinition { StepId = "step-docs", AgentKey = "Documentation", PositionX = 1000, PositionY = 300 };
+        var assets = MakeGeneratedAssetsStep(1200, 200);
 
         return new PipelineDefinition
         {
             Id = "default-pipeline",
             Name = "Default",
-            Description = "Full 6-agent pipeline: Analyst → Architect → Developer ↔ Reviewer → Testing ∥ Documentation",
+            Description = "Full pipeline: DocInput → Analyst → Architect → Developer ↔ Reviewer → Testing ∥ Documentation → Assets",
             IsDefault = true,
             IsActive = true,
-            Steps = [analyst, architect, developer, reviewer, testing, docs],
+            Steps = [docInput, analyst, architect, developer, reviewer, testing, docs, assets],
             Edges =
             [
+                // DocInput → Analyst
+                new PipelineEdge { SourceStepId = docInput.StepId, TargetStepId = "step-analyst", OutputKeyMapping = "spec" },
                 new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-architect", OutputKeyMapping = "analysis" },
                 new PipelineEdge { SourceStepId = "step-architect", TargetStepId = "step-developer", OutputKeyMapping = "blueprint" },
                 new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-developer", OutputKeyMapping = "analysis" },
@@ -56,76 +80,92 @@ public static class PipelineTemplates
                 new PipelineEdge { SourceStepId = "step-reviewer", TargetStepId = "step-docs", OutputKeyMapping = "review" },
                 new PipelineEdge { SourceStepId = "step-developer", TargetStepId = "step-docs", OutputKeyMapping = "code" },
                 new PipelineEdge { SourceStepId = "step-architect", TargetStepId = "step-docs", OutputKeyMapping = "blueprint" },
+                // Terminal steps → Assets
+                new PipelineEdge { SourceStepId = "step-testing", TargetStepId = assets.StepId, OutputKeyMapping = "tests" },
+                new PipelineEdge { SourceStepId = "step-docs", TargetStepId = assets.StepId, OutputKeyMapping = "docs" },
+                new PipelineEdge { SourceStepId = "step-developer", TargetStepId = assets.StepId, OutputKeyMapping = "code" },
             ]
         };
     }
 
-    /// <summary>Code Only pipeline: Analyst → Developer.</summary>
+    /// <summary>Code Only pipeline: DocInput → Analyst → Developer → Assets.</summary>
     public static PipelineDefinition CreateCodeOnly()
     {
-        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 100, PositionY = 200 };
-        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 300, PositionY = 200 };
+        var docInput = MakeDocumentInputStep(20, 200);
+        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 200, PositionY = 200 };
+        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 400, PositionY = 200 };
+        var assets = MakeGeneratedAssetsStep(600, 200);
 
         return new PipelineDefinition
         {
             Id = "code-only-pipeline",
             Name = "Code Only",
-            Description = "Minimal pipeline: Analyst → Developer",
-            Steps = [analyst, developer],
+            Description = "Minimal pipeline: DocInput → Analyst → Developer → Assets",
+            Steps = [docInput, analyst, developer, assets],
             Edges =
             [
+                new PipelineEdge { SourceStepId = docInput.StepId, TargetStepId = "step-analyst", OutputKeyMapping = "spec" },
                 new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-developer", OutputKeyMapping = "analysis" },
+                new PipelineEdge { SourceStepId = "step-developer", TargetStepId = assets.StepId, OutputKeyMapping = "code" },
             ]
         };
     }
 
-    /// <summary>Quick Prototype pipeline: Analyst → Developer → Documentation.</summary>
+    /// <summary>Quick Prototype pipeline: DocInput → Analyst → Developer → Documentation → Assets.</summary>
     public static PipelineDefinition CreateQuickPrototype()
     {
-        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 100, PositionY = 200 };
-        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 300, PositionY = 200 };
-        var docs = new PipelineStepDefinition { StepId = "step-docs", AgentKey = "Documentation", PositionX = 500, PositionY = 200 };
+        var docInput = MakeDocumentInputStep(20, 200);
+        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 200, PositionY = 200 };
+        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 400, PositionY = 200 };
+        var docs = new PipelineStepDefinition { StepId = "step-docs", AgentKey = "Documentation", PositionX = 600, PositionY = 200 };
+        var assets = MakeGeneratedAssetsStep(800, 200);
 
         return new PipelineDefinition
         {
             Id = "quick-prototype-pipeline",
             Name = "Quick Prototype",
-            Description = "Fast pipeline: Analyst → Developer → Documentation",
-            Steps = [analyst, developer, docs],
+            Description = "Fast pipeline: DocInput → Analyst → Developer → Documentation → Assets",
+            Steps = [docInput, analyst, developer, docs, assets],
             Edges =
             [
+                new PipelineEdge { SourceStepId = docInput.StepId, TargetStepId = "step-analyst", OutputKeyMapping = "spec" },
                 new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-developer", OutputKeyMapping = "analysis" },
                 new PipelineEdge { SourceStepId = "step-developer", TargetStepId = "step-docs", OutputKeyMapping = "code" },
-                new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-docs", OutputKeyMapping = "blueprint" },
+                new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-docs", OutputKeyMapping = "analysis" },
+                new PipelineEdge { SourceStepId = "step-docs", TargetStepId = assets.StepId, OutputKeyMapping = "docs" },
+                new PipelineEdge { SourceStepId = "step-developer", TargetStepId = assets.StepId, OutputKeyMapping = "code" },
             ]
         };
     }
 
-    /// <summary>Full QA pipeline: Analyst → Architect → Developer ↔ Reviewer (strict) → Testing → Reviewer → Documentation.</summary>
+    /// <summary>Full QA pipeline: DocInput → Analyst → Architect → Developer ↔ Reviewer (strict) → Testing → Documentation → Assets.</summary>
     public static PipelineDefinition CreateFullQA()
     {
-        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 100, PositionY = 200 };
-        var architect = new PipelineStepDefinition { StepId = "step-architect", AgentKey = "Architect", PositionX = 300, PositionY = 200 };
-        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 500, PositionY = 200 };
+        var docInput = MakeDocumentInputStep(20, 200);
+        var analyst = new PipelineStepDefinition { StepId = "step-analyst", AgentKey = "Analyst", PositionX = 200, PositionY = 200 };
+        var architect = new PipelineStepDefinition { StepId = "step-architect", AgentKey = "Architect", PositionX = 400, PositionY = 200 };
+        var developer = new PipelineStepDefinition { StepId = "step-developer", AgentKey = "Developer", PositionX = 600, PositionY = 200 };
         var reviewer = new PipelineStepDefinition
         {
             StepId = "step-reviewer",
             AgentKey = "Reviewer",
-            PositionX = 700,
+            PositionX = 800,
             PositionY = 200,
             RetryPolicy = new StepRetryPolicy { MaxRetries = 3, QualityGateField = "scoreOutOf100", AcceptanceThreshold = 80 }
         };
-        var testing = new PipelineStepDefinition { StepId = "step-testing", AgentKey = "Testing", PositionX = 900, PositionY = 200 };
-        var docs = new PipelineStepDefinition { StepId = "step-docs", AgentKey = "Documentation", PositionX = 1300, PositionY = 200 };
+        var testing = new PipelineStepDefinition { StepId = "step-testing", AgentKey = "Testing", PositionX = 1000, PositionY = 200 };
+        var docs = new PipelineStepDefinition { StepId = "step-docs", AgentKey = "Documentation", PositionX = 1200, PositionY = 200 };
+        var assets = MakeGeneratedAssetsStep(1400, 200);
 
         return new PipelineDefinition
         {
             Id = "full-qa-pipeline",
             Name = "Full QA",
-            Description = "Rigorous pipeline with strict quality gates: Analyst → Architect → Developer ↔ Reviewer (threshold 80, max 3) → Testing → Documentation",
-            Steps = [analyst, architect, developer, reviewer, testing, docs],
+            Description = "Rigorous pipeline: DocInput → Analyst → Architect → Developer ↔ Reviewer (80, 3×) → Testing → Documentation → Assets",
+            Steps = [docInput, analyst, architect, developer, reviewer, testing, docs, assets],
             Edges =
             [
+                new PipelineEdge { SourceStepId = docInput.StepId, TargetStepId = "step-analyst", OutputKeyMapping = "spec" },
                 new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-architect", OutputKeyMapping = "analysis" },
                 new PipelineEdge { SourceStepId = "step-architect", TargetStepId = "step-developer", OutputKeyMapping = "blueprint" },
                 new PipelineEdge { SourceStepId = "step-analyst", TargetStepId = "step-developer", OutputKeyMapping = "analysis" },
@@ -138,6 +178,10 @@ public static class PipelineTemplates
                 new PipelineEdge { SourceStepId = "step-testing", TargetStepId = "step-docs", OutputKeyMapping = "tests" },
                 new PipelineEdge { SourceStepId = "step-developer", TargetStepId = "step-docs", OutputKeyMapping = "code" },
                 new PipelineEdge { SourceStepId = "step-architect", TargetStepId = "step-docs", OutputKeyMapping = "blueprint" },
+                // Terminal → Assets
+                new PipelineEdge { SourceStepId = "step-docs", TargetStepId = assets.StepId, OutputKeyMapping = "docs" },
+                new PipelineEdge { SourceStepId = "step-testing", TargetStepId = assets.StepId, OutputKeyMapping = "tests" },
+                new PipelineEdge { SourceStepId = "step-developer", TargetStepId = assets.StepId, OutputKeyMapping = "code" },
             ]
         };
     }

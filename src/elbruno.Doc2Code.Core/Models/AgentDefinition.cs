@@ -42,14 +42,41 @@ public sealed class AgentDefinition
 
     /// <summary>Short description of what this agent does.</summary>
     public string Description { get; set; } = "";
+
+    /// <summary>
+    /// True for the two bookend pseudo-agents (Document Input / Generated Assets).
+    /// Bookend agents represent fixed entry/exit points and cannot be deleted.
+    /// </summary>
+    public bool IsBookend { get; set; }
 }
 
-/// <summary>Factory for the 6 built-in agent definitions.</summary>
+/// <summary>Factory for the built-in agent definitions.</summary>
 public static class BuiltInAgentDefinitions
 {
-    /// <summary>Returns the 6 default agent definitions with prompts from <see cref="AgentInstructions"/>.</summary>
+    /// <summary>Agent key for the Document Input bookend.</summary>
+    public const string DocumentInputKey = "DocumentInput";
+
+    /// <summary>Agent key for the Generated Assets bookend.</summary>
+    public const string GeneratedAssetsKey = "GeneratedAssets";
+
+    /// <summary>Returns the 6 pipeline agent definitions plus 2 bookend definitions.</summary>
     public static List<AgentDefinition> Create() =>
     [
+        // ── Bookend: Document Input (entry) ──
+        new AgentDefinition
+        {
+            AgentKey = DocumentInputKey,
+            DisplayName = "\U0001F4C4 Document Input",
+            IsBuiltIn = true,
+            IsBookend = true,
+            SystemPrompt = "",
+            UserPromptTemplate = "",
+            Description = "Fixed entry point — receives the uploaded requirements document and seeds the pipeline data bag.",
+            ExpectedInputKeys = [],
+            OutputKey = "spec",
+            SupportsTools = false
+        },
+
         new AgentDefinition
         {
             AgentKey = "Analyst",
@@ -121,6 +148,21 @@ public static class BuiltInAgentDefinitions
             ExpectedInputKeys = ["code", "blueprint"],
             OutputKey = "docs",
             SupportsTools = true
+        },
+
+        // ── Bookend: Generated Assets (exit) ──
+        new AgentDefinition
+        {
+            AgentKey = GeneratedAssetsKey,
+            DisplayName = "\U0001F4E6 Generated Assets",
+            IsBuiltIn = true,
+            IsBookend = true,
+            SystemPrompt = "",
+            UserPromptTemplate = "",
+            Description = "Fixed exit point — collects all generated artifacts (code, tests, docs) for packaging.",
+            ExpectedInputKeys = ["code"],
+            OutputKey = "assets",
+            SupportsTools = false
         }
     ];
 }
