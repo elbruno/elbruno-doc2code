@@ -13,6 +13,10 @@ window.pipelineCanvas = (function () {
     let _connectState = { sourceStepId: null, active: false };
     let _tempLine = null;
 
+    // ── Bookend step ID constants ──
+    var STEP_DOCUMENT_INPUT = "step-document-input";
+    var STEP_GENERATED_ASSETS = "step-generated-assets";
+
     function _px(v) { return v + "px"; }
 
     function _buildNodeEl(step, agentName) {
@@ -29,7 +33,7 @@ window.pipelineCanvas = (function () {
 
         var badgeHtml = "";
         if (step.isBookend) {
-            var isStart = step.stepId === "step-document-input";
+            var isStart = step.stepId === STEP_DOCUMENT_INPUT;
             badgeHtml = '<span class="pd-bookend-badge">' + (isStart ? "START" : "END") + '</span>';
         }
 
@@ -39,8 +43,8 @@ window.pipelineCanvas = (function () {
             (step.retryPolicy ? '<span class="pd-retry-badge" title="Retry policy">&#x21bb; ' + step.retryPolicy.maxRetries + '</span>' : '');
 
         // Add connector ports (bookend exceptions)
-        var isDocInput = step.stepId === "step-document-input";
-        var isGenAssets = step.stepId === "step-generated-assets";
+        var isDocInput = step.stepId === STEP_DOCUMENT_INPUT;
+        var isGenAssets = step.stepId === STEP_GENERATED_ASSETS;
 
         if (!isGenAssets) {
             var outPort = document.createElement("div");
