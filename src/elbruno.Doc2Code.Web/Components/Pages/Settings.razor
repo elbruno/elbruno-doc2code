@@ -283,6 +283,63 @@
         font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
         font-size: 0.88rem;
     }
+
+    /* ── Agent Profile: top settings grid ── */
+    .agent-settings-grid {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .agent-settings-grid .term-label {
+        margin-bottom: 0;
+        white-space: nowrap;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+    }
+    .agent-settings-grid .term-input {
+        width: 100%;
+    }
+    .agent-settings-grid .creativity-value {
+        color: #33ff77;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.82rem;
+        min-width: 2.5rem;
+        text-align: right;
+    }
+    .agent-settings-grid .term-range {
+        width: 100%;
+    }
+    .agent-settings-grid .btn-grid {
+        justify-self: end;
+    }
+
+    /* ── Agent Profile: side-by-side prompt columns ── */
+    .agent-prompts-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    .agent-prompt-col {
+        display: flex;
+        flex-direction: column;
+    }
+    .agent-prompt-col .prompt-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.4rem;
+    }
+    .agent-prompt-col .term-textarea {
+        flex: 1;
+        min-height: 10rem;
+        resize: vertical;
+    }
+    .agent-prompt-col .term-muted {
+        margin-top: 0.3rem;
+    }
 </style>
 
 <div class="d2c-wrap">
@@ -312,7 +369,7 @@ else if (_currentConfig is null)
 }
 else
 {
-    <div style="max-width: 52rem; display: flex; flex-direction: column; gap: 1.5rem;">
+    <div style="max-width: 72rem; display: flex; flex-direction: column; gap: 1.5rem;">
 
         @* ────── Tab Bar ────── *@
         <div class="term-tab-bar">
@@ -740,61 +797,63 @@ else
                             </h2>
                             <div id="@panelId" class="@collapseClass" aria-labelledby="@headerId" data-bs-parent="#agentProfileAccordion">
                                 <div class="accordion-body">
-                                    <div class="mb-3">
-                                        <div class="d-flex justify-content-between align-items-end mb-1">
-                                            <label class="form-label term-label mb-0" for="@($"modelOverride_{profileIdx}")">Model Override</label>
-                                            <button type="button"
-                                                    class="btn btn-outline-success btn-sm"
-                                                    style="font-size: 0.72rem; padding: 0.2rem 0.6rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
-                                                    @onclick="@(() => SetDefaultModelForAgent(currentProfile))"
-                                                    title="Reset model to the current provider's default">
-                                                Set to Default
-                                            </button>
-                                        </div>
+                                    @* ── Model Override + Creativity in aligned grid ── *@
+                                    <div class="agent-settings-grid">
+                                        <label class="term-label" for="@($"modelOverride_{profileIdx}")">Model Override</label>
                                         <input type="text"
                                                id="@($"modelOverride_{profileIdx}")"
                                                class="form-control term-input"
                                                @bind="profile.ModelId" />
-                                    </div>
+                                        <button type="button"
+                                                class="btn btn-outline-success btn-sm btn-grid"
+                                                style="font-size: 0.72rem; padding: 0.2rem 0.6rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace; white-space: nowrap;"
+                                                @onclick="@(() => SetDefaultModelForAgent(currentProfile))"
+                                                title="Reset model to the current provider's default">
+                                            Set to Default
+                                        </button>
 
-                                    <div class="mb-3">
-                                        <label class="form-label term-label">
-                                            Creativity: @profile.Creativity.ToString("F1")
-                                        </label>
+                                        <label class="term-label">Creativity</label>
                                         <input type="range"
                                                class="form-range term-range"
                                                min="0" max="1" step="0.1"
                                                value="@profile.Creativity"
                                                @onchange="@(e => SetCreativity(profile, Convert.ToDouble(e.Value)))" />
+                                        <span class="creativity-value">@profile.Creativity.ToString("F1")</span>
                                     </div>
 
-                                    <div class="mb-3">
-                                        <label class="form-label term-label" for="@($"instrArea_{profileIdx}")">Custom Instructions</label>
-                                        <textarea id="@($"instrArea_{profileIdx}")"
-                                                  class="form-control term-textarea"
-                                                  rows="3"
-                                                  @bind="profile.Instruction"></textarea>
-                                    </div>
-
-                                    <div class="mb-1">
-                                        <div class="d-flex justify-content-between align-items-end mb-1">
-                                            <label class="form-label term-label mb-0" for="@($"sysPromptArea_{profileIdx}")">System Prompt</label>
-                                            <button type="button"
-                                                    class="btn btn-outline-success btn-sm"
-                                                    style="font-size: 0.72rem; padding: 0.2rem 0.6rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
-                                                    @onclick="@(() => ResetSystemPromptToDefault(currentProfile))"
-                                                    title="Reset the system prompt to the built-in default">
-                                                Reset to Default
-                                            </button>
+                                    @* ── System Prompt & Custom Instructions side by side ── *@
+                                    <div class="agent-prompts-row">
+                                        <div class="agent-prompt-col">
+                                            <div class="prompt-header">
+                                                <label class="form-label term-label mb-0" for="@($"sysPromptArea_{profileIdx}")">System Prompt</label>
+                                                <button type="button"
+                                                        class="btn btn-outline-success btn-sm"
+                                                        style="font-size: 0.70rem; padding: 0.18rem 0.5rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
+                                                        @onclick="@(() => ResetSystemPromptToDefault(currentProfile))"
+                                                        title="Reset the system prompt to the built-in default">
+                                                    Reset to Default
+                                                </button>
+                                            </div>
+                                            <textarea id="@($"sysPromptArea_{profileIdx}")"
+                                                      class="form-control term-textarea"
+                                                      rows="8"
+                                                      @bind="profile.SystemPrompt"
+                                                      placeholder="@GetDefaultSystemPrompt(profile.AgentKey)"></textarea>
+                                            <span class="term-muted" style="opacity: 0.6; font-size: 0.75rem;">
+                                                Leave empty to use the built-in default prompt.
+                                            </span>
                                         </div>
-                                        <textarea id="@($"sysPromptArea_{profileIdx}")"
-                                                  class="form-control term-textarea"
-                                                  rows="8"
-                                                  @bind="profile.SystemPrompt"
-                                                  placeholder="@GetDefaultSystemPrompt(profile.AgentKey)"></textarea>
-                                        <span class="term-muted" style="opacity: 0.6; font-size: 0.78rem;">
-                                            Leave empty to use the built-in default prompt.
-                                        </span>
+
+                                        <div class="agent-prompt-col">
+                                            <div class="prompt-header">
+                                                <label class="form-label term-label mb-0" for="@($"instrArea_{profileIdx}")">Custom Instructions</label>
+                                            </div>
+                                            <textarea id="@($"instrArea_{profileIdx}")"
+                                                      class="form-control term-textarea"
+                                                      rows="8"
+                                                      @bind="profile.Instruction"
+                                                      placeholder="Additional instructions for this agent..."></textarea>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
