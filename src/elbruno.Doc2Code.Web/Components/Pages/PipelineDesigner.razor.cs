@@ -124,17 +124,26 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     public void HandleEdgeCreated(string sourceId, string targetId)
     {
         if (_activePipeline is null) return;
+
+        // Reject self-loops
+        if (sourceId == targetId) return;
+
         var alreadyExists = _activePipeline.Edges.Any(e =>
             e.SourceStepId == sourceId && e.TargetStepId == targetId);
         if (alreadyExists) return;
+
+        // Auto-resolve OutputKeyMapping from the source agent's OutputKey
+        var sourceStep = _activePipeline.Steps.Find(s => s.StepId == sourceId);
+        var sourceAgent = sourceStep is not null ? _agents.Find(a => a.AgentKey == sourceStep.AgentKey) : null;
 
         PushUndo();
         _activePipeline.Edges.Add(new PipelineEdge
         {
             SourceStepId = sourceId,
             TargetStepId = targetId,
-            OutputKeyMapping = ""
+            OutputKeyMapping = sourceAgent?.OutputKey ?? ""
         });
+        ShowStatus($"Edge created: {ResolveStepLabel(sourceId)} \u2192 {ResolveStepLabel(targetId)}");
         InvokeAsync(async () => { StateHasChanged(); await RenderCanvasAsync(); });
     }
 
@@ -308,18 +317,7 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
         };
         _activePipeline.Steps.Add(newStep);
 
-        // Auto-connect to last step if there is one
-        if (_activePipeline.Steps.Count > 1)
-        {
-            var previousStep = _activePipeline.Steps[^2];
-            var sourceAgent = _agents.Find(a => a.AgentKey == previousStep.AgentKey);
-            _activePipeline.Edges.Add(new PipelineEdge
-            {
-                SourceStepId = previousStep.StepId,
-                TargetStepId = newStep.StepId,
-                OutputKeyMapping = sourceAgent?.OutputKey ?? ""
-            });
-        }
+        // Agents land unconnected — users drag from output port to input port to create edges.
 
         await RenderCanvasAsync();
     }

@@ -1,4 +1,4 @@
-// elbruno.Doc2Code — JS interop for the pipeline designer canvas (node drag, SVG edges, layout).
+// elbruno.Doc2Code — JS interop for the pipeline designer canvas (node drag, SVG edges, layout, connector ports).
 
 window.pipelineCanvas = (function () {
     "use strict";
@@ -9,6 +9,10 @@ window.pipelineCanvas = (function () {
     let _svgEl = null;
     let _dragState = null;
 
+    // ── Connection drag state ──
+    let _connectState = { sourceStepId: null, active: false };
+    let _tempLine = null;
+
     function _px(v) { return v + "px"; }
 
     function _buildNodeEl(step, agentName) {
@@ -17,12 +21,68 @@ window.pipelineCanvas = (function () {
         el.dataset.stepId = step.stepId;
         el.style.left = _px(step.positionX);
         el.style.top = _px(step.positionY);
+
+        // Bookend styling
+        if (step.isBookend) {
+            el.classList.add("pd-node-bookend");
+        }
+
+        var badgeHtml = "";
+        if (step.isBookend) {
+            var isStart = step.stepId === "step-document-input";
+            badgeHtml = '<span class="pd-bookend-badge">' + (isStart ? "START" : "END") + '</span>';
+        }
+
         el.innerHTML =
             '<span class="pd-node-label">' + _escHtml(agentName || step.agentKey) + '</span>' +
+            badgeHtml +
             (step.retryPolicy ? '<span class="pd-retry-badge" title="Retry policy">&#x21bb; ' + step.retryPolicy.maxRetries + '</span>' : '');
 
-        el.addEventListener("pointerdown", function (ev) { _startDrag(ev, step.stepId); });
+        // Add connector ports (bookend exceptions)
+        var isDocInput = step.stepId === "step-document-input";
+        var isGenAssets = step.stepId === "step-generated-assets";
+
+        if (!isGenAssets) {
+            var outPort = document.createElement("div");
+            outPort.className = "pd-port pd-port-out";
+            outPort.dataset.port = "out";
+            outPort.dataset.stepId = step.stepId;
+            outPort.addEventListener("pointerdown", function (ev) {
+                ev.stopPropagation();
+                ev.preventDefault();
+                _startConnect(step.stepId, ev);
+            });
+            el.appendChild(outPort);
+        }
+
+        if (!isDocInput) {
+            var inPort = document.createElement("div");
+            inPort.className = "pd-port pd-port-in";
+            inPort.dataset.port = "in";
+            inPort.dataset.stepId = step.stepId;
+            inPort.addEventListener("pointerup", function (ev) {
+                ev.stopPropagation();
+                if (_connectState.active && _connectState.sourceStepId !== step.stepId) {
+                    _finishConnect(step.stepId);
+                }
+            });
+            inPort.addEventListener("pointerenter", function () {
+                if (_connectState.active && _connectState.sourceStepId !== step.stepId) {
+                    inPort.classList.add("pd-port-valid-target");
+                }
+            });
+            inPort.addEventListener("pointerleave", function () {
+                inPort.classList.remove("pd-port-valid-target");
+            });
+            el.appendChild(inPort);
+        }
+
+        el.addEventListener("pointerdown", function (ev) {
+            if (ev.target.classList.contains("pd-port")) return;
+            _startDrag(ev, step.stepId);
+        });
         el.addEventListener("click", function (ev) {
+            if (ev.target.classList.contains("pd-port")) return;
             ev.stopPropagation();
             _selectNode(step.stepId);
         });
@@ -43,6 +103,8 @@ window.pipelineCanvas = (function () {
         });
         if (_dotNetRef) _dotNetRef.invokeMethodAsync("OnNodeSelectedJs", stepId);
     }
+
+    // ── Node drag ──
 
     function _startDrag(ev, stepId) {
         ev.preventDefault();
@@ -89,30 +151,115 @@ window.pipelineCanvas = (function () {
         document.removeEventListener("pointerup", _onDragEnd);
     }
 
-    function _nodeCenterCoords(stepId) {
+    // ── Port-to-port connection drag ──
+
+    function _startConnect(sourceStepId, ev) {
+        _connectState.sourceStepId = sourceStepId;
+        _connectState.active = true;
+
+        var container = document.getElementById(_containerId);
+        if (!container || !_svgEl) return;
+
+        var coords = _nodePortCoords(sourceStepId);
+        if (!coords) return;
+        var startX = coords.portOutX;
+        var startY = coords.portOutY;
+
+        _tempLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        _tempLine.setAttribute("x1", startX);
+        _tempLine.setAttribute("y1", startY);
+        _tempLine.setAttribute("x2", startX);
+        _tempLine.setAttribute("y2", startY);
+        _tempLine.setAttribute("class", "pd-edge-temp");
+        _svgEl.appendChild(_tempLine);
+
+        document.addEventListener("pointermove", _onConnectMove);
+        document.addEventListener("pointerup", _onConnectCancel);
+    }
+
+    function _onConnectMove(ev) {
+        if (!_connectState.active || !_tempLine) return;
+        var container = document.getElementById(_containerId);
+        if (!container) return;
+        var cRect = container.getBoundingClientRect();
+        var mx = ev.clientX - cRect.left;
+        var my = ev.clientY - cRect.top;
+        _tempLine.setAttribute("x2", mx);
+        _tempLine.setAttribute("y2", my);
+    }
+
+    function _onConnectCancel() {
+        _cleanupConnect();
+    }
+
+    function _finishConnect(targetStepId) {
+        if (!_connectState.active) return;
+        var sourceStepId = _connectState.sourceStepId;
+        _cleanupConnect();
+        if (_dotNetRef && sourceStepId && targetStepId) {
+            _dotNetRef.invokeMethodAsync("OnEdgeCreatedJs", sourceStepId, targetStepId);
+        }
+    }
+
+    function _cleanupConnect() {
+        _connectState.active = false;
+        _connectState.sourceStepId = null;
+        if (_tempLine && _tempLine.parentNode) {
+            _tempLine.parentNode.removeChild(_tempLine);
+        }
+        _tempLine = null;
+        // Remove any lingering valid-target highlights
+        var container = document.getElementById(_containerId);
+        if (container) {
+            container.querySelectorAll(".pd-port-valid-target").forEach(function (p) {
+                p.classList.remove("pd-port-valid-target");
+            });
+        }
+        document.removeEventListener("pointermove", _onConnectMove);
+        document.removeEventListener("pointerup", _onConnectCancel);
+    }
+
+    // ── Port-aware coordinate calculation ──
+
+    function _nodePortCoords(stepId) {
         var el = _nodes[stepId];
         if (!el) return null;
         var x = parseFloat(el.style.left) || 0;
         var y = parseFloat(el.style.top) || 0;
         var w = el.offsetWidth || 140;
         var h = el.offsetHeight || 48;
-        return { cx: x + w / 2, cy: y + h / 2, right: x + w, left: x, top: y, bottom: y + h };
+        return {
+            cx: x + w / 2,
+            cy: y + h / 2,
+            right: x + w,
+            left: x,
+            top: y,
+            bottom: y + h,
+            portOutX: x + w + 6,
+            portOutY: y + h / 2,
+            portInX: x - 6,
+            portInY: y + h / 2
+        };
     }
 
     function _redrawEdges() {
         if (!_svgEl) return;
+        // Preserve temp line if present
+        var tempRef = _tempLine;
         while (_svgEl.firstChild) _svgEl.removeChild(_svgEl.firstChild);
+        if (tempRef) _svgEl.appendChild(tempRef);
+
         var container = document.getElementById(_containerId);
         if (!container || !container._edges) return;
         container._edges.forEach(function (edge) {
-            var src = _nodeCenterCoords(edge.sourceStepId);
-            var tgt = _nodeCenterCoords(edge.targetStepId);
+            var src = _nodePortCoords(edge.sourceStepId);
+            var tgt = _nodePortCoords(edge.targetStepId);
             if (!src || !tgt) return;
 
-            var startX = src.right;
-            var startY = src.cy;
-            var endX = tgt.left;
-            var endY = tgt.cy;
+            var startX = src.portOutX;
+            var startY = src.portOutY;
+            var endX = tgt.portInX;
+            var endY = tgt.portInY;
             var midX = (startX + endX) / 2;
 
             var pathData = "M " + startX + " " + startY +
@@ -124,7 +271,7 @@ window.pipelineCanvas = (function () {
             _svgEl.appendChild(pathEl);
 
             // arrowhead triangle at the end
-            var arrowLen = 8;
+            var arrowLen = 10;
             var angle = Math.atan2(endY - startY, endX - startX);
             if (Math.abs(endX - startX) > 10) angle = 0; // mostly horizontal edges
             var ax1 = endX - arrowLen * Math.cos(angle - 0.4);
@@ -134,8 +281,24 @@ window.pipelineCanvas = (function () {
             var arrowPath = "M " + endX + " " + endY + " L " + ax1 + " " + ay1 + " L " + ax2 + " " + ay2 + " Z";
             var arrowEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
             arrowEl.setAttribute("d", arrowPath);
-            arrowEl.setAttribute("class", "pd-edge-arrow");
+            arrowEl.setAttribute("fill", "#33ff77");
+            arrowEl.setAttribute("stroke", "none");
             _svgEl.appendChild(arrowEl);
+
+            // Edge label (OutputKeyMapping) at Bézier midpoint
+            if (edge.outputKeyMapping) {
+                var labelX = (startX + endX) / 2;
+                var labelY = (startY + endY) / 2 - 6;
+                var textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                textEl.setAttribute("x", labelX);
+                textEl.setAttribute("y", labelY);
+                textEl.setAttribute("text-anchor", "middle");
+                textEl.setAttribute("fill", "#6e7681");
+                textEl.setAttribute("font-size", "10");
+                textEl.setAttribute("font-family", "'Cascadia Code', monospace");
+                textEl.textContent = edge.outputKeyMapping;
+                _svgEl.appendChild(textEl);
+            }
         });
     }
 
@@ -145,6 +308,7 @@ window.pipelineCanvas = (function () {
         _dotNetRef = dotNetRef;
         _containerId = containerId;
         _nodes = {};
+        _cleanupConnect();
 
         var container = document.getElementById(containerId);
         if (!container) return;

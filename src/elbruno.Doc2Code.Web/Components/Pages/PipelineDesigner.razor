@@ -365,6 +365,49 @@
         border-color: #ff6b6b;
     }
 
+    /* ── Connector ports ── */
+    .pd-port {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #1a4d2e;
+        border: 2px solid #33ff77;
+        position: absolute;
+        cursor: crosshair;
+        z-index: 2;
+        transition: transform 0.15s, background 0.15s;
+    }
+    .pd-port:hover {
+        transform: scale(1.4);
+        background: #33ff77;
+    }
+    .pd-port-out {
+        right: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .pd-port-out:hover {
+        transform: translateY(-50%) scale(1.4);
+    }
+    .pd-port-in {
+        left: -6px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .pd-port-in:hover {
+        transform: translateY(-50%) scale(1.4);
+    }
+    .pd-port-valid-target {
+        background: #d4c85a;
+        box-shadow: 0 0 6px rgba(212, 200, 90, 0.6);
+    }
+    .pd-edge-temp {
+        stroke: #d4c85a;
+        stroke-width: 2;
+        stroke-dasharray: 5,5;
+        fill: none;
+    }
+
     /* ── Pipeline dropdown ── */
     .pd-pipeline-select {
         background: #161b22;
@@ -517,14 +560,7 @@ else
             @if (_isConnectMode)
             {
                 <div class="pd-connect-hint">
-                    @if (_connectSourceStepId is null)
-                    {
-                        <span>&#x1F517; Click a source step to start the connection&hellip;</span>
-                    }
-                    else
-                    {
-                        <span>&#x1F517; Source: <strong>@ResolveStepLabel(_connectSourceStepId)</strong> &mdash; now click the target step, or press Esc to cancel.</span>
-                    }
+                    Drag from an output port &#x25CF; to an input port &#x25CF;, or use Connect mode to click source then target.
                 </div>
             }
 
