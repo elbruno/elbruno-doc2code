@@ -42,7 +42,13 @@ builder.Services.AddSingleton<ReviewerAgent>();
 builder.Services.AddSingleton<TestingAgent>();
 builder.Services.AddSingleton<DocumentationAgent>();
 builder.Services.AddSingleton<AgentOrchestrator>();
-builder.Services.AddSingleton<IGenerationPipeline>(sp => sp.GetRequiredService<AgentOrchestrator>());
+
+// Dynamic pipeline engine — DAG-based runner with parallel execution
+builder.Services.AddSingleton<elbruno.Doc2Code.Core.Pipeline.TopologicalSorter>();
+builder.Services.AddSingleton<elbruno.Doc2Code.Core.Pipeline.PipelineValidator>();
+builder.Services.AddSingleton<IAgentFactory, AgentFactory>();
+builder.Services.AddSingleton<DynamicPipelineRunner>();
+builder.Services.AddSingleton<IGenerationPipeline>(sp => sp.GetRequiredService<DynamicPipelineRunner>());
 // Supporting services
 builder.Services.AddSingleton<IDocumentIngester, TextDocumentIngester>();
 builder.Services.AddSingleton<IArchiveBuilder, ZipArchiveBuilder>();

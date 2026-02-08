@@ -3,6 +3,7 @@ namespace elbruno.Doc2Code.Web.Components.Pages;
 
 using System.Text;
 using elbruno.Doc2Code.Core.Models;
+using elbruno.Doc2Code.Core.Pipeline;
 using elbruno.Doc2Code.Web.Services;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
@@ -22,6 +23,9 @@ public sealed partial class Home : IAsyncDisposable
     [Microsoft.AspNetCore.Components.Inject]
     public IJSRuntime JsHost { get; set; } = default!;
 
+    [Microsoft.AspNetCore.Components.Inject]
+    public SettingsApiClient SettingsClient { get; set; } = default!;
+
     private IBrowserFile? _chosenDoc;
     private bool _pipelineActive;
     private string _statusLine = string.Empty;
@@ -34,18 +38,16 @@ public sealed partial class Home : IAsyncDisposable
     private string _currentStageName = string.Empty;
     private Dictionary<string, string> _currentStreamingText = new(StringComparer.OrdinalIgnoreCase);
 
-    private const string ConsolePanelId = "d2c-console-output";
+    /// <summary>Dynamically loaded pipeline levels (each level is a list of agent keys that run in parallel).</summary>
+    private List<List<string>> _pipelineLevels = [];
 
-    /// <summary>Maps agent display names to their corresponding <see cref="WorkflowStage"/> for ordering.</summary>
-    private static readonly Dictionary<string, WorkflowStage> AgentStageMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["Analyst"] = WorkflowStage.Analyzing,
-        ["Architect"] = WorkflowStage.Designing,
-        ["Developer"] = WorkflowStage.Coding,
-        ["Reviewer"] = WorkflowStage.Reviewing,
-        ["Testing"] = WorkflowStage.GeneratingTests,
-        ["Documentation"] = WorkflowStage.GeneratingDocs,
-    };
+    /// <summary>Flat ordered list of agent keys from the active pipeline.</summary>
+    private List<string> _pipelineAgentKeys = [];
+
+    /// <summary>Maps agent key → its level index for ordering/state tracking.</summary>
+    private Dictionary<string, int> _agentLevelIndex = new(StringComparer.OrdinalIgnoreCase);
+
+    private const string ConsolePanelId = "d2c-console-output";
 
     private void OnDocumentChosen(InputFileChangeEventArgs args)
     {
@@ -95,7 +97,53 @@ public sealed partial class Home : IAsyncDisposable
         SignalRLink.RunFinished += OnRunFinished;
         SignalRLink.StreamingChunkArrived += OnStreamingChunkArrived;
 
-        await Task.CompletedTask;
+        // Load the active pipeline to render dynamic pipeline viewer
+        await LoadActivePipelineAsync();
+    }
+
+    /// <summary>Loads the active pipeline definition and computes topological levels.</summary>
+    private async Task LoadActivePipelineAsync()
+    {
+        try
+        {
+            var pipelines = await SettingsClient.GetPipelinesAsync();
+            var activePipeline = pipelines.FirstOrDefault(p => p.IsActive)
+                ?? PipelineTemplates.CreateDefault();
+
+            var sorter = new TopologicalSorter();
+            var levels = sorter.Sort(activePipeline);
+
+            _pipelineLevels = levels.Select(level =>
+                level.Select(step => step.AgentKey).ToList()).ToList();
+
+            _pipelineAgentKeys = _pipelineLevels.SelectMany(l => l).ToList();
+
+            _agentLevelIndex.Clear();
+            for (var i = 0; i < _pipelineLevels.Count; i++)
+            {
+                foreach (var key in _pipelineLevels[i])
+                    _agentLevelIndex[key] = i;
+            }
+        }
+        catch
+        {
+            // Fallback to default pipeline if settings are unavailable
+            _pipelineLevels =
+            [
+                ["Analyst"],
+                ["Architect"],
+                ["Developer"],
+                ["Reviewer"],
+                ["Testing", "Documentation"]
+            ];
+            _pipelineAgentKeys = _pipelineLevels.SelectMany(l => l).ToList();
+            _agentLevelIndex.Clear();
+            for (var i = 0; i < _pipelineLevels.Count; i++)
+            {
+                foreach (var key in _pipelineLevels[i])
+                    _agentLevelIndex[key] = i;
+            }
+        }
     }
 
     private void OnLogArrived(AgentLogEntry entry)
@@ -139,7 +187,9 @@ public sealed partial class Home : IAsyncDisposable
             _latestPipelineState = status;
             _activeAgentName = status.ActiveAgent;
             _progressPct = status.CompletionPercent;
-            _currentStageName = status.Stage.ToString();
+            _currentStageName = status.Stage == WorkflowStage.Custom
+                ? status.CustomStageName ?? status.Stage.ToString()
+                : status.Stage.ToString();
             StateHasChanged();
             try
             {
@@ -214,6 +264,7 @@ public sealed partial class Home : IAsyncDisposable
 
     /// <summary>
     /// Returns a CSS class indicating the visual state of a pipeline node.
+    /// Uses dynamic pipeline level index instead of hardcoded stage map.
     /// </summary>
     private string NodeCssState(string agentKey)
     {
@@ -227,11 +278,20 @@ public sealed partial class Home : IAsyncDisposable
         if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase))
             return "d2c-node-active";
 
-        // Determine if the agent's stage has already been passed.
-        if (AgentStageMap.TryGetValue(agentKey, out var agentStage)
-            && AgentStageMap.TryGetValue(_activeAgentName, out var currentStage))
+        // Use dynamic level indices for ordering
+        if (_agentLevelIndex.TryGetValue(agentKey, out var agentLevel)
+            && _agentLevelIndex.TryGetValue(_activeAgentName, out var currentLevel))
         {
-            if (agentStage < currentStage)
+            if (agentLevel < currentLevel)
+                return "d2c-node-done";
+        }
+
+        // Use StepAgentKey for more precise tracking
+        if (!string.IsNullOrEmpty(_latestPipelineState.StepAgentKey)
+            && _agentLevelIndex.TryGetValue(agentKey, out var agentLvl)
+            && _agentLevelIndex.TryGetValue(_latestPipelineState.StepAgentKey, out var stepLvl))
+        {
+            if (agentLvl < stepLvl)
                 return "d2c-node-done";
         }
 
@@ -245,22 +305,23 @@ public sealed partial class Home : IAsyncDisposable
     /// <summary>
     /// Returns a CSS class indicating the visual state of a pipeline connector arrow.
     /// </summary>
-    private string ConnectorCssState(int index)
+    private string ConnectorCssState(int levelIndex)
     {
-        if (_latestPipelineState is null)
+        if (_latestPipelineState is null || _pipelineLevels.Count == 0)
             return "";
 
-        var agentKeys = new[] { "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation" };
-        if (index < 0 || index >= agentKeys.Length - 1)
+        if (levelIndex < 0 || levelIndex >= _pipelineLevels.Count - 1)
             return "";
 
-        // The connector before agent at index+1 is active when that agent is active or done
-        var nextAgentKey = agentKeys[index + 1];
-        var nextState = NodeCssState(nextAgentKey);
-        if (nextState is "d2c-node-active" or "d2c-node-done")
-            return "d2c-connector-active";
+        // The connector before level at levelIndex+1 is active when any agent in that level is active or done
+        var nextLevel = _pipelineLevels[levelIndex + 1];
+        var anyActiveOrDone = nextLevel.Any(key =>
+        {
+            var state = NodeCssState(key);
+            return state is "d2c-node-active" or "d2c-node-done";
+        });
 
-        return "";
+        return anyActiveOrDone ? "d2c-connector-active" : "";
     }
 
     public async ValueTask DisposeAsync()

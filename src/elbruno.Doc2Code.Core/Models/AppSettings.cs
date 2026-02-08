@@ -29,6 +29,8 @@ public sealed class Doc2CodeConfig
     }
 
     public List<AgentProfile> AgentProfiles { get; init; } = [];
+    public List<AgentDefinition> AgentDefinitions { get; set; } = [];
+    public List<PipelineDefinition> Pipelines { get; set; } = [];
     public SourceControlConfig SourceControl { get; init; } = new();
 
     public Dictionary<string, bool> EnabledTools { get; set; } = new()

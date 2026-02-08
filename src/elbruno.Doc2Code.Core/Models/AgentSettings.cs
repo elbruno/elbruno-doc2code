@@ -2,6 +2,7 @@
 namespace elbruno.Doc2Code.Core.Models;
 
 /// <summary>Configuration for a single agent in the pipeline.</summary>
+[Obsolete("Use AgentDefinition instead. AgentProfile is kept for backward compatibility during migration.")]
 public sealed class AgentProfile
 {
     public required string AgentKey { get; init; }

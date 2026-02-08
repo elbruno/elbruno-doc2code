@@ -2,6 +2,23 @@
 
 <div class="d-flex flex-column vh-100"
      style="background-color: #090b0d; color: #33ff77; font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Mono', monospace;">
+
+    @* ── Shared site header with navigation ── *@
+    <header class="d2c-site-header">
+        <h2 class="d2c-site-title">elbruno.Doc2Code</h2>
+        <nav class="d2c-site-nav">
+            <NavLink class="d2c-nav-btn" href="/" Match="NavLinkMatch.All" ActiveClass="d2c-nav-btn-active">
+                &#x25B6; Generate
+            </NavLink>
+            <NavLink class="d2c-nav-btn" href="/pipeline-designer" ActiveClass="d2c-nav-btn-active">
+                &#x1F527; Pipeline
+            </NavLink>
+            <NavLink class="d2c-nav-btn" href="/settings" ActiveClass="d2c-nav-btn-active">
+                &#x2699; Settings
+            </NavLink>
+        </nav>
+    </header>
+
     <main class="flex-grow-1 p-4 overflow-auto">
         @Body
     </main>

@@ -3,8 +3,9 @@
 ## Overview
 
 elbruno.Doc2Code is a multi-agent system that transforms requirements documents
-into complete .NET 10 solutions. The architecture follows a sequential pipeline
-pattern where each agent processes the output of its predecessor.
+into complete .NET 10 solutions. The architecture uses a configurable DAG
+(directed acyclic graph) pipeline where agents can run in parallel at each
+level, with user-defined custom agents and pipeline configurations.
 
 ## Service Topology
 
@@ -32,10 +33,23 @@ Four services are orchestrated by .NET Aspire:
 
 ### elbruno.Doc2Code.Core
 Pure domain models with no AI dependencies. Defines the abstractions
-(`IAgent<TIn,TOut>`, `IGenerationPipeline`, `IDocumentIngester`, `IArchiveBuilder`,
-`ISettingsStore`) and the models that flow between agents. Also contains
-`AgentInstructions` (default system prompts) and DTOs including
-`TestConnectionRequest` / `TestConnectionResult` for provider connectivity testing.
+(`IAgent<TIn,TOut>`, `IDynamicAgent`, `IGenerationPipeline`, `IDocumentIngester`,
+`IArchiveBuilder`, `ISettingsStore`) and the models that flow between agents.
+Also contains `AgentInstructions` (default system prompts), DTOs including
+`TestConnectionRequest` / `TestConnectionResult` / `SettingsExportBundle`
+for provider connectivity testing and settings export/import.
+
+Key pipeline models:
+- **AgentDefinition** — complete definition of a pipeline agent (prompts, model,
+  I/O schema). Built-in agents are immutable; custom agents are user-defined.
+- **PipelineDefinition** — DAG of agent steps with edges, positions, and retry policies
+- **PipelineDataBag** — typed dictionary serving as shared I/O bus for all agents
+- **PipelineStepDefinition** / **PipelineEdge** / **StepRetryPolicy** — DAG structure
+- **PipelineValidator** — validates pipeline definitions for correctness (cycles,
+  missing agents, unresolved input keys)
+- **TopologicalSorter** — Kahn's algorithm for computing parallel execution levels
+- **PipelineTemplates** — 4 pre-built pipeline templates (Default, Code Only,
+  Quick Prototype, Full QA)
 
 ### elbruno.Doc2Code.LlmProviders
 Isolated library containing all LLM provider factory logic and SDK dependencies:
@@ -58,13 +72,19 @@ Separated library for the agent tool system:
 - **StubToolDefinitions** — placeholder tools for future capabilities
 
 ### elbruno.Doc2Code.Agents
-Six LLM agents plus an orchestrator:
+Six LLM agents, a legacy orchestrator, and the dynamic pipeline engine:
 - **AnalystAgent** — extracts entities, actors, business rules, state machines
 - **ArchitectAgent** — designs the target .NET solution structure
 - **DeveloperAgent** — generates all source files
 - **ReviewerAgent** — scores quality (0–100); can trigger a Developer retry
 - **TestingAgent** — generates xUnit tests
 - **DocumentationAgent** — generates README and technical documentation
+- **DynamicPipelineRunner** — DAG-based pipeline runner with parallel execution
+  support; replaces the legacy `AgentOrchestrator`
+- **AgentFactory** — creates `IDynamicAgent` instances (built-in via adapter,
+  custom via `DynamicLlmAgent`)
+- **BuiltInAgentAdapter** — wraps typed agents as `IDynamicAgent`
+- **DynamicLlmAgent** — dynamic agent driven by `AgentDefinition` prompts
 
 ### elbruno.Doc2Code.DocumentProcessing
 Parses text/Markdown documents into `RequirementsDocument` using regex-based
@@ -76,7 +96,13 @@ Dedicated microservice for configuration persistence:
 - `PUT /api/settings` — replaces the full configuration
 - `PATCH /api/settings/tools` — toggles individual tool enabled/disabled states
 - `GET /api/settings/models/suggested` — returns model recommendations
+- Agent Definition CRUD: `GET/POST/PUT/DELETE /api/settings/agents`
+- Pipeline CRUD: `GET/POST/PUT/DELETE /api/settings/pipelines`
+- Pipeline actions: `POST .../activate`, `POST .../clone`
+- Export/Import: `GET/POST /api/settings/export`, `GET/POST .../pipelines/{id}/export`
 - Stores data in a local `settings.json` file with thread-safe access
+- Auto-seeds built-in agent definitions and pipeline templates on first load
+- Migrates legacy `AgentProfiles` into `AgentDefinitions`
 - References **Core only** (no dependency on Agents)
 
 ### elbruno.Doc2Code.ApiService
@@ -89,10 +115,14 @@ Backend HTTP + SignalR:
 - Reads configuration from SettingsService via `RemoteSettingsClient`
 
 ### elbruno.Doc2Code.Web
-Blazor frontend with Bootstrap 5 (dark terminal theme). Features a real-time
-pipeline viewer connected via SignalR, an auto-scrolling console log panel,
-and a terminal/hacker aesthetic UI. Includes a Settings page for configuration,
-tool toggles, and **Test Connection** buttons for all four LLM providers.
+Blazor frontend with Bootstrap 5 (dark terminal theme). Features:
+- **Home page** — dynamic pipeline viewer that renders the active pipeline's DAG
+  topology with parallel step indicators, connected via SignalR for real-time updates
+- **Pipeline Designer** — drag-and-drop canvas for composing custom pipelines,
+  with agent repository sidebar, properties inspector, undo/redo, and export/import
+- **Settings page** — configuration, tool toggles, agent definitions (replacing
+  legacy agent profiles), and **Test Connection** buttons for all four LLM providers
+- Auto-scrolling console log panel with streaming agent output
 
 ### elbruno.Doc2Code.AppHost
 Aspire orchestrator that launches Ollama (Docker container), SettingsService,
@@ -114,12 +144,31 @@ Web → references Core only
 
 ## Agent Pipeline
 
+The pipeline is now a fully configurable DAG (directed acyclic graph). The default
+pipeline follows this topology:
+
 ```
 Document → Ingester → Analyst → Architect → Developer → Reviewer
                                                ↑           │
                                                └── loop ───┘ (if score < 70, max 2 retries)
-                                                   → Testing → Documentation → ZIP
+                                                   → Testing ─┐
+                                                               ├→ ZIP
+                                                   → Docs ─────┘ (parallel)
 ```
+
+The `DynamicPipelineRunner` computes execution levels via topological sort and
+runs independent steps in parallel using `Task.WhenAll`. Four built-in pipeline
+templates are available:
+
+| Template | Flow |
+|---|---|
+| **Default** | Analyst → Architect → Developer ↔ Reviewer → Testing ∥ Documentation |
+| **Code Only** | Analyst → Developer |
+| **Quick Prototype** | Analyst → Developer → Documentation |
+| **Full QA** | Analyst → Architect → Developer ↔ Reviewer (80/3) → Testing → Documentation |
+
+Users can create custom pipelines via the Pipeline Designer page, adding custom
+agents and connecting them in any valid DAG configuration.
 
 ## JSON Resilience
 

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 ///   Analyst → Architect → Developer → Reviewer (loop if score &lt; 70, max 2) → Testing → Documentation
 /// Each step emits <see cref="AgentLogEntry"/> messages through the provided <see cref="IProgress{T}"/>.
 /// </summary>
+[Obsolete("Use DynamicPipelineRunner instead. AgentOrchestrator is kept for reference during transition.")]
 public sealed class AgentOrchestrator : IGenerationPipeline
 {
     private readonly AnalystAgent _analyst;

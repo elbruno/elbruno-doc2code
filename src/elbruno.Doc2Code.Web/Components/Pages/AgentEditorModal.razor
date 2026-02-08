@@ -1,0 +1,332 @@
+@* elbruno.Doc2Code — Modal dialog for creating or editing agent definitions. *@
+@using elbruno.Doc2Code.Core.Models
+
+<div class="pd-modal-backdrop" @onclick="OnCancel">
+    <div class="pd-modal-dialog" @onclick:stopPropagation="true">
+        <div class="pd-modal-header">
+            <span class="pd-modal-title">@(Agent.IsBuiltIn ? "View Agent" : (string.IsNullOrEmpty(Agent.AgentKey) ? "New Agent" : "Edit Agent"))</span>
+            <button class="pd-modal-close" @onclick="OnCancel">&times;</button>
+        </div>
+        <div class="pd-modal-body">
+
+            @* Display Name *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">
+                    Display Name
+                    @if (Agent.IsBuiltIn) { <span class="pd-lock-icon" title="Built-in agent — read only">&#x1F512;</span> }
+                </label>
+                <input type="text" class="pd-field-input" @bind="_displayName"
+                       disabled="@Agent.IsBuiltIn" placeholder="My Custom Agent" />
+            </div>
+
+            @* Agent Key *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">Agent Key</label>
+                <input type="text" class="pd-field-input" value="@_agentKey" disabled
+                       style="opacity: 0.6;" />
+                @if (!Agent.IsBuiltIn)
+                {
+                    <span class="pd-field-hint">Auto-generated from display name</span>
+                }
+            </div>
+
+            @* Description *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">Description</label>
+                <input type="text" class="pd-field-input" @bind="_description"
+                       disabled="@Agent.IsBuiltIn" placeholder="What does this agent do?" />
+            </div>
+
+            @* System Prompt *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">
+                    System Prompt
+                    @if (Agent.IsBuiltIn) { <span class="pd-lock-icon">&#x1F512;</span> }
+                </label>
+                <textarea class="pd-field-textarea" rows="5" @bind="_systemPrompt"
+                          disabled="@Agent.IsBuiltIn" placeholder="You are a helpful assistant..."></textarea>
+            </div>
+
+            @* User Prompt Template *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">
+                    User Prompt Template
+                    @if (Agent.IsBuiltIn) { <span class="pd-lock-icon">&#x1F512;</span> }
+                </label>
+                <textarea class="pd-field-textarea" rows="4" @bind="_userPromptTemplate"
+                          disabled="@Agent.IsBuiltIn" placeholder="Process the following: {input}"></textarea>
+                <span class="pd-field-hint">Use &#123;key&#125; placeholders for pipeline data bag values.</span>
+            </div>
+
+            @* Model + Temperature row *@
+            <div class="pd-field-row">
+                <div class="pd-field-group" style="flex: 1;">
+                    <label class="pd-field-label">Model ID</label>
+                    <input type="text" class="pd-field-input" @bind="_modelId" placeholder="ministral-3" />
+                </div>
+                <div class="pd-field-group" style="width: 9rem;">
+                    <label class="pd-field-label">Temperature</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="range" class="pd-field-range" min="0" max="1" step="0.05"
+                               @bind="_temperature" />
+                        <span class="pd-temp-readout">@_temperature.ToString("F2")</span>
+                    </div>
+                </div>
+            </div>
+
+            @* Supports Tools toggle *@
+            <div class="pd-field-group">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="agentToolsToggle"
+                           @bind="_supportsTools"
+                           style="background-color: #161b22; border-color: #1a4d2e;" />
+                    <label class="form-check-label" for="agentToolsToggle"
+                           style="color: #c9d1d9; font-size: 0.78rem; font-family: inherit;">
+                        Supports Tools
+                    </label>
+                </div>
+            </div>
+
+            @* Expected Input Keys *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">Expected Input Keys</label>
+                <input type="text" class="pd-field-input" @bind="_inputKeysRaw"
+                       placeholder="spec, analysis, blueprint" />
+                <span class="pd-field-hint">Comma-separated list of data bag keys this agent reads.</span>
+            </div>
+
+            @* Output Key *@
+            <div class="pd-field-group">
+                <label class="pd-field-label">Output Key</label>
+                <input type="text" class="pd-field-input" @bind="_outputKey"
+                       placeholder="analysis" />
+            </div>
+
+        </div>
+        <div class="pd-modal-footer">
+            <button class="pd-toolbar-btn" @onclick="OnCancel">Cancel</button>
+            @if (!Agent.IsBuiltIn)
+            {
+                <button class="pd-toolbar-btn pd-btn-accent" @onclick="HandleSave"
+                        disabled="@string.IsNullOrWhiteSpace(_displayName)">
+                    Save Agent
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .pd-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .pd-modal-dialog {
+        background: #0d1117;
+        border: 1px solid #1a4d2e;
+        border-radius: 0.5rem;
+        width: 38rem;
+        max-width: 95vw;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        box-shadow: 0 0 30px rgba(51, 255, 119, 0.15);
+    }
+    .pd-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #1a4d2e;
+    }
+    .pd-modal-title {
+        color: #33ff77;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+    .pd-modal-close {
+        background: transparent;
+        border: none;
+        color: #6e7681;
+        font-size: 1.3rem;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .pd-modal-close:hover { color: #ff6b6b; }
+    .pd-modal-body {
+        padding: 1rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+    .pd-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.7rem 1rem;
+        border-top: 1px solid #1a4d2e;
+    }
+    .pd-field-group {
+        margin-bottom: 0.85rem;
+    }
+    .pd-field-label {
+        display: block;
+        color: #33ff77;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.25rem;
+    }
+    .pd-lock-icon {
+        font-size: 0.65rem;
+        margin-left: 0.3rem;
+        vertical-align: middle;
+    }
+    .pd-field-input {
+        background: #161b22;
+        border: 1px solid #1a4d2e;
+        color: #33ff77;
+        font-family: inherit;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 3px;
+        width: 100%;
+    }
+    .pd-field-input:focus {
+        border-color: #33ff77;
+        outline: none;
+        box-shadow: 0 0 0 0.15rem rgba(51, 255, 119, 0.2);
+    }
+    .pd-field-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pd-field-textarea {
+        background: #161b22;
+        border: 1px solid #1a4d2e;
+        color: #33ff77;
+        font-family: inherit;
+        font-size: 0.78rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 3px;
+        width: 100%;
+        resize: vertical;
+    }
+    .pd-field-textarea:focus {
+        border-color: #33ff77;
+        outline: none;
+        box-shadow: 0 0 0 0.15rem rgba(51, 255, 119, 0.2);
+    }
+    .pd-field-textarea:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pd-field-hint {
+        display: block;
+        color: #6e7681;
+        font-size: 0.65rem;
+        margin-top: 0.2rem;
+    }
+    .pd-field-row {
+        display: flex;
+        gap: 1rem;
+    }
+    .pd-field-range {
+        width: 100%;
+        accent-color: #33ff77;
+    }
+    .pd-temp-readout {
+        color: #33ff77;
+        font-size: 0.75rem;
+        min-width: 2.2rem;
+        text-align: right;
+    }
+</style>
+
+@code {
+    [Parameter, EditorRequired]
+    public AgentDefinition Agent { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<AgentDefinition> OnSave { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    // ── Local editing state (copy of Agent fields) ──────────────────
+    private string _displayName = "";
+    private string _agentKey = "";
+    private string _description = "";
+    private string _systemPrompt = "";
+    private string _userPromptTemplate = "";
+    private string _modelId = "ministral-3";
+    private double _temperature = 0.7;
+    private bool _supportsTools;
+    private string _inputKeysRaw = "";
+    private string _outputKey = "";
+
+    protected override void OnParametersSet()
+    {
+        _displayName = Agent.DisplayName;
+        _agentKey = Agent.AgentKey;
+        _description = Agent.Description;
+        _systemPrompt = Agent.SystemPrompt;
+        _userPromptTemplate = Agent.UserPromptTemplate;
+        _modelId = Agent.ModelId;
+        _temperature = Agent.Temperature;
+        _supportsTools = Agent.SupportsTools;
+        _inputKeysRaw = string.Join(", ", Agent.ExpectedInputKeys ?? []);
+        _outputKey = Agent.OutputKey;
+    }
+
+    /// <summary>Derives a slug-style key from the display name (lowercase, hyphens, no special chars).</summary>
+    private static string Slugify(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        var slug = name.Trim().ToLowerInvariant();
+        var sb = new System.Text.StringBuilder(slug.Length);
+        foreach (var ch in slug)
+        {
+            if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+            else if (ch is ' ' or '-' or '_') sb.Append('-');
+        }
+        // collapse consecutive hyphens
+        var result = sb.ToString();
+        while (result.Contains("--")) result = result.Replace("--", "-");
+        return result.Trim('-');
+    }
+
+    private async Task HandleSave()
+    {
+        var key = string.IsNullOrEmpty(Agent.AgentKey)
+            ? Slugify(_displayName)
+            : Agent.AgentKey;
+
+        var parsed = (_inputKeysRaw ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        var saved = new AgentDefinition
+        {
+            AgentKey = key,
+            DisplayName = _displayName,
+            IsBuiltIn = Agent.IsBuiltIn,
+            SystemPrompt = _systemPrompt,
+            UserPromptTemplate = _userPromptTemplate,
+            ModelId = _modelId,
+            Temperature = _temperature,
+            SupportsTools = _supportsTools,
+            ExpectedInputKeys = parsed,
+            OutputKey = _outputKey,
+            Description = _description
+        };
+
+        await OnSave.InvokeAsync(saved);
+    }
+}
