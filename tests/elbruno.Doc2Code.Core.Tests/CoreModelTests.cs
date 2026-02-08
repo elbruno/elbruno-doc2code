@@ -2,6 +2,7 @@
 
 using elbruno.Doc2Code.Core.Models;
 using elbruno.Doc2Code.Core.Pipeline;
+using elbruno.Doc2Code.Core.DTOs;
 using FluentAssertions;
 
 public class CoreModelTests
@@ -275,6 +276,367 @@ public class CoreModelTests
         };
         result.Success.Should().BeTrue();
         result.Message.Should().Be("Connection OK");
+    }
+
+    // --- Phase 1: AgentDefinition, PipelineDefinition, PipelineDataBag, BuiltInAgentDefinitions ---
+
+    [Fact]
+    public void BuiltInAgentDefinitions_Create_Returns6Agents()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        agents.Should().HaveCount(6);
+    }
+
+    [Fact]
+    public void BuiltInAgentDefinitions_AllHaveCorrectKeys()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var keys = agents.Select(a => a.AgentKey).ToList();
+        keys.Should().BeEquivalentTo(["Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation"]);
+    }
+
+    [Fact]
+    public void BuiltInAgentDefinitions_AllAreMarkedBuiltIn()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        agents.Should().AllSatisfy(a => a.IsBuiltIn.Should().BeTrue());
+    }
+
+    [Fact]
+    public void BuiltInAgentDefinitions_AllHaveNonEmptySystemPrompts()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        agents.Should().AllSatisfy(a => a.SystemPrompt.Should().NotBeNullOrWhiteSpace());
+    }
+
+    [Fact]
+    public void AgentDefinition_DefaultValues()
+    {
+        var def = new AgentDefinition { AgentKey = "test" };
+        def.ModelId.Should().Be("ministral-3");
+        def.Temperature.Should().BeApproximately(0.7, 0.001);
+    }
+
+    [Fact]
+    public void PipelineDefinition_DefaultValues()
+    {
+        var def = new PipelineDefinition();
+        def.Id.Should().NotBeNullOrWhiteSpace();
+        def.Version.Should().Be(1);
+        def.Steps.Should().BeEmpty();
+        def.Edges.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PipelineDataBag_SetAndGet_RoundTrips()
+    {
+        var bag = new PipelineDataBag();
+        bag.Set("greeting", "hello");
+        var value = bag.Get<string>("greeting");
+        value.Should().Be("hello");
+    }
+
+    [Fact]
+    public void PipelineDataBag_TryGet_ReturnsFalseForMissingKey()
+    {
+        var bag = new PipelineDataBag();
+        var found = bag.TryGet<string>("missing", out _);
+        found.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PipelineDataBag_ContainsKey_ReturnsTrueAfterSet()
+    {
+        var bag = new PipelineDataBag();
+        bag.Set("key1", 42);
+        bag.ContainsKey("key1").Should().BeTrue();
+    }
+
+    [Fact]
+    public void PipelineDataBag_Keys_ReturnsSetKeys()
+    {
+        var bag = new PipelineDataBag();
+        bag.Set("alpha", 1);
+        bag.Set("beta", 2);
+        bag.Keys.Should().Contain("alpha").And.Contain("beta");
+    }
+
+    [Fact]
+    public void PipelineDataBag_Get_ThrowsForMissingKey()
+    {
+        var bag = new PipelineDataBag();
+        var act = () => bag.Get<string>("nope");
+        act.Should().Throw<KeyNotFoundException>();
+    }
+
+    [Fact]
+    public void PipelineDataBag_OriginalSpec_DefaultsToNull()
+    {
+        var bag = new PipelineDataBag();
+        bag.OriginalSpec.Should().BeNull();
+    }
+
+    // --- Phase 2: TopologicalSorter, PipelineValidator ---
+
+    [Fact]
+    public void TopologicalSorter_LinearChain_ReturnsCorrectLevels()
+    {
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "A", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "B", AgentKey = "Architect" },
+                new PipelineStepDefinition { StepId = "C", AgentKey = "Developer" }
+            ],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = "A", TargetStepId = "B" },
+                new PipelineEdge { SourceStepId = "B", TargetStepId = "C" }
+            ]
+        };
+        var sorter = new TopologicalSorter();
+        var levels = sorter.Sort(pipeline);
+        levels.Should().HaveCount(3);
+        levels.Should().AllSatisfy(l => l.Should().HaveCount(1));
+    }
+
+    [Fact]
+    public void TopologicalSorter_ParallelBranches_GroupsTogether()
+    {
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "A", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "B", AgentKey = "Architect" },
+                new PipelineStepDefinition { StepId = "C", AgentKey = "Developer" }
+            ],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = "A", TargetStepId = "B" },
+                new PipelineEdge { SourceStepId = "A", TargetStepId = "C" }
+            ]
+        };
+        var sorter = new TopologicalSorter();
+        var levels = sorter.Sort(pipeline);
+        levels.Should().HaveCount(2);
+        levels[0].Should().HaveCount(1);
+        levels[0][0].StepId.Should().Be("A");
+        levels[1].Select(s => s.StepId).Should().BeEquivalentTo(["B", "C"]);
+    }
+
+    [Fact]
+    public void TopologicalSorter_DiamondShape_ReturnsCorrectLevels()
+    {
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "A", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "B", AgentKey = "Architect" },
+                new PipelineStepDefinition { StepId = "C", AgentKey = "Developer" },
+                new PipelineStepDefinition { StepId = "D", AgentKey = "Reviewer" }
+            ],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = "A", TargetStepId = "B" },
+                new PipelineEdge { SourceStepId = "A", TargetStepId = "C" },
+                new PipelineEdge { SourceStepId = "B", TargetStepId = "D" },
+                new PipelineEdge { SourceStepId = "C", TargetStepId = "D" }
+            ]
+        };
+        var sorter = new TopologicalSorter();
+        var levels = sorter.Sort(pipeline);
+        levels.Should().HaveCount(3);
+        levels[0].Select(s => s.StepId).Should().BeEquivalentTo(["A"]);
+        levels[1].Select(s => s.StepId).Should().BeEquivalentTo(["B", "C"]);
+        levels[2].Select(s => s.StepId).Should().BeEquivalentTo(["D"]);
+    }
+
+    [Fact]
+    public void TopologicalSorter_CycleDetection_Throws()
+    {
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "A", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "B", AgentKey = "Architect" }
+            ],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = "A", TargetStepId = "B" },
+                new PipelineEdge { SourceStepId = "B", TargetStepId = "A" }
+            ]
+        };
+        var sorter = new TopologicalSorter();
+        var act = () => sorter.Sort(pipeline);
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void TopologicalSorter_EmptyPipeline_ReturnsEmpty()
+    {
+        var pipeline = new PipelineDefinition();
+        var sorter = new TopologicalSorter();
+        var levels = sorter.Sort(pipeline);
+        levels.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void PipelineValidator_ValidPipeline_ReturnsValid()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "S1", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "S2", AgentKey = "Architect" }
+            ],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = "S1", TargetStepId = "S2" }
+            ]
+        };
+        var validator = new PipelineValidator();
+        var result = validator.Validate(pipeline, agents);
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void PipelineValidator_MissingAgent_ReturnsError()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "S1", AgentKey = "NonExistent" }
+            ]
+        };
+        var validator = new PipelineValidator();
+        var result = validator.Validate(pipeline, agents);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void PipelineValidator_CycleDetection_ReturnsError()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "S1", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "S2", AgentKey = "Architect" }
+            ],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = "S1", TargetStepId = "S2" },
+                new PipelineEdge { SourceStepId = "S2", TargetStepId = "S1" }
+            ]
+        };
+        var validator = new PipelineValidator();
+        var result = validator.Validate(pipeline, agents);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void PipelineValidator_DuplicateStepIds_ReturnsError()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var pipeline = new PipelineDefinition
+        {
+            Steps =
+            [
+                new PipelineStepDefinition { StepId = "S1", AgentKey = "Analyst" },
+                new PipelineStepDefinition { StepId = "S1", AgentKey = "Architect" }
+            ]
+        };
+        var validator = new PipelineValidator();
+        // Duplicate step IDs cause an ArgumentException during validation
+        var act = () => validator.Validate(pipeline, agents);
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void PipelineValidator_EmptyPipeline_ReturnsError()
+    {
+        var agents = BuiltInAgentDefinitions.Create();
+        var pipeline = new PipelineDefinition();
+        var validator = new PipelineValidator();
+        var result = validator.Validate(pipeline, agents);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().NotBeEmpty();
+    }
+
+    // --- Pipeline Templates ---
+
+    [Fact]
+    public void PipelineTemplates_CreateAll_Returns4Templates()
+    {
+        var templates = PipelineTemplates.CreateAll();
+        templates.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public void PipelineTemplates_Default_IsMarkedDefaultAndActive()
+    {
+        var def = PipelineTemplates.CreateDefault();
+        def.IsDefault.Should().BeTrue();
+        def.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public void PipelineTemplates_Default_Has6Steps()
+    {
+        var def = PipelineTemplates.CreateDefault();
+        def.Steps.Should().HaveCount(6);
+    }
+
+    // --- SettingsExportBundle ---
+
+    [Fact]
+    public void SettingsExportBundle_Serialization_RoundTrips()
+    {
+        var bundle = new SettingsExportBundle
+        {
+            Version = 2,
+            AgentDefinitions = [new AgentDefinition { AgentKey = "Analyst" }],
+            Pipelines = [new PipelineDefinition { Name = "Test" }],
+            EnabledTools = new Dictionary<string, bool> { ["tool1"] = true }
+        };
+        var json = System.Text.Json.JsonSerializer.Serialize(bundle);
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize<SettingsExportBundle>(json)!;
+        deserialized.Version.Should().Be(2);
+        deserialized.AgentDefinitions.Should().HaveCount(1);
+        deserialized.AgentDefinitions[0].AgentKey.Should().Be("Analyst");
+        deserialized.Pipelines.Should().HaveCount(1);
+        deserialized.Pipelines[0].Name.Should().Be("Test");
+        deserialized.EnabledTools.Should().ContainKey("tool1").WhoseValue.Should().BeTrue();
+    }
+
+    // --- PipelineStatus ---
+
+    [Fact]
+    public void PipelineStatus_NewFields_HaveDefaults()
+    {
+        var status = new PipelineStatus { RunId = "run1" };
+        status.StepIndex.Should().Be(0);
+        status.TotalSteps.Should().Be(0);
+        status.StepAgentKey.Should().BeEmpty();
+        status.ParallelPeers.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void WorkflowStage_Custom_Exists()
+    {
+        var custom = WorkflowStage.Custom;
+        custom.Should().BeDefined();
     }
 }
 

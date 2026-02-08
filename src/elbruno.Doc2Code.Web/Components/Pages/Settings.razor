@@ -380,7 +380,7 @@ else
         <div class="term-tab-bar">
             <button type="button" class="term-tab-btn @(_activeTab == 0 ? "active" : "")" @onclick="@(() => _activeTab = 0)">Agent Mode</button>
             <button type="button" class="term-tab-btn @(_activeTab == 1 ? "active" : "")" @onclick="@(() => _activeTab = 1)">Agent Tools</button>
-            <button type="button" class="term-tab-btn @(_activeTab == 2 ? "active" : "")" @onclick="@(() => _activeTab = 2)">Agent Profiles</button>
+            <button type="button" class="term-tab-btn @(_activeTab == 2 ? "active" : "")" @onclick="@(() => _activeTab = 2)">Agent Definitions</button>
             <button type="button" class="term-tab-btn @(_activeTab == 3 ? "active" : "")" @onclick="@(() => _activeTab = 3)">Source Control</button>
         </div>
 
@@ -752,19 +752,28 @@ else
             </div>
         }
 
-        @* ────── Tab 3: Agent Profiles ────── *@
+        @* ────── Tab 3: Agent Definitions ────── *@
         @if (_activeTab == 2)
         {
             <div class="term-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="term-heading mb-0">Agent Profiles</h5>
-                    <button type="button"
-                            class="btn term-btn-save btn-sm"
-                            style="font-size: 0.78rem; padding: 0.35rem 0.9rem;"
-                            @onclick="SetDefaultModelToAll"
-                            title="Set all agent models to the current provider's default model">
-                        Set Default Model to All
-                    </button>
+                    <h5 class="term-heading mb-0">Agent Definitions</h5>
+                    <div class="d-flex gap-2">
+                        <button type="button"
+                                class="btn term-btn-save btn-sm"
+                                style="font-size: 0.78rem; padding: 0.35rem 0.9rem;"
+                                @onclick="SetDefaultModelToAll"
+                                title="Set all agent models to the current provider's default model">
+                            Set Default Model to All
+                        </button>
+                        <button type="button"
+                                class="btn btn-outline-success btn-sm"
+                                style="font-size: 0.78rem; padding: 0.35rem 0.9rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
+                                @onclick="AddCustomAgent"
+                                title="Add a new custom agent definition">
+                            ➕ New Agent
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mb-3" style="background-color: #1c2733; border: 1px solid #33ff77; border-radius: 0.4rem; padding: 0.6rem 1rem; font-size: 0.82rem; color: #c9d1d9;">
@@ -772,15 +781,15 @@ else
                     <code style="color: #58a6ff;">@GetDefaultModel()</code>
                 </div>
 
-                <div class="accordion term-accordion" id="agentProfileAccordion">
-                    @{ var profileIdx = 0; }
-                    @foreach (var profile in _currentConfig.AgentProfiles)
+                <div class="accordion term-accordion" id="agentDefAccordion">
+                    @{ var defIdx = 0; }
+                    @foreach (var agentDef in _currentConfig.AgentDefinitions)
                     {
-                        var panelId = $"agentPanel_{profileIdx}";
-                        var headerId = $"agentHeader_{profileIdx}";
-                        var collapseClass = profileIdx == 0 ? "accordion-collapse collapse show" : "accordion-collapse collapse";
-                        var btnClass = profileIdx == 0 ? "accordion-button" : "accordion-button collapsed";
-                        var currentProfile = profile;
+                        var panelId = $"agentDefPanel_{defIdx}";
+                        var headerId = $"agentDefHeader_{defIdx}";
+                        var collapseClass = defIdx == 0 ? "accordion-collapse collapse show" : "accordion-collapse collapse";
+                        var btnClass = defIdx == 0 ? "accordion-button" : "accordion-button collapsed";
+                        var currentDef = agentDef;
 
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="@headerId">
@@ -788,82 +797,118 @@ else
                                         type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#@panelId"
-                                        aria-expanded="@(profileIdx == 0 ? "true" : "false")"
+                                        aria-expanded="@(defIdx == 0 ? "true" : "false")"
                                         aria-controls="@panelId">
-                                    @profile.AgentKey
+                                    @agentDef.DisplayName
+                                    @if (agentDef.IsBuiltIn)
+                                    {
+                                        <span style="margin-left: 0.5rem; font-size: 0.7rem; background: #33ff77; color: #0d1117; padding: 0.1rem 0.4rem; border-radius: 3px;">BUILT-IN</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="margin-left: 0.5rem; font-size: 0.7rem; background: #58a6ff; color: #0d1117; padding: 0.1rem 0.4rem; border-radius: 3px;">CUSTOM</span>
+                                    }
                                 </button>
                             </h2>
-                            <div id="@panelId" class="@collapseClass" aria-labelledby="@headerId" data-bs-parent="#agentProfileAccordion">
+                            <div id="@panelId" class="@collapseClass" aria-labelledby="@headerId" data-bs-parent="#agentDefAccordion">
                                 <div class="accordion-body">
-                                    @* ── Model Override + Creativity in aligned grid ── *@
+                                    @* ── Model Override + Temperature in aligned grid ── *@
                                     <div class="agent-settings-grid">
-                                        <label class="term-label" for="@($"modelOverride_{profileIdx}")">Model Override</label>
+                                        <label class="term-label" for="@($"defModel_{defIdx}")">Model Override</label>
                                         <input type="text"
-                                               id="@($"modelOverride_{profileIdx}")"
+                                               id="@($"defModel_{defIdx}")"
                                                class="form-control term-input"
-                                               @bind="profile.ModelId" />
+                                               @bind="agentDef.ModelId" />
                                         <button type="button"
                                                 class="btn btn-outline-success btn-sm btn-grid"
                                                 style="font-size: 0.72rem; padding: 0.2rem 0.6rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace; white-space: nowrap;"
-                                                @onclick="@(() => SetDefaultModelForAgent(currentProfile))"
+                                                @onclick="@(() => SetDefaultModelForAgentDef(currentDef))"
                                                 title="Reset model to the current provider's default">
                                             Set to Default
                                         </button>
 
-                                        <label class="term-label">Creativity</label>
+                                        <label class="term-label">Temperature</label>
                                         <input type="range"
                                                class="form-range term-range"
                                                min="0" max="1" step="0.1"
-                                               value="@profile.Creativity"
-                                               @onchange="@(e => SetCreativity(profile, Convert.ToDouble(e.Value)))" />
-                                        <span class="creativity-value">@profile.Creativity.ToString("F1")</span>
+                                               value="@agentDef.Temperature"
+                                               @onchange="@(e => agentDef.Temperature = Convert.ToDouble(e.Value))" />
+                                        <span class="creativity-value">@agentDef.Temperature.ToString("F1")</span>
                                     </div>
 
-                                    @* ── System Prompt & Custom Instructions side by side ── *@
+                                    @* ── System Prompt & User Prompt Template side by side ── *@
                                     <div class="agent-prompts-row">
                                         <div class="agent-prompt-col">
                                             <div class="prompt-header">
-                                                <label class="form-label term-label mb-0" for="@($"sysPromptArea_{profileIdx}")">System Prompt</label>
-                                                <button type="button"
-                                                        class="btn btn-outline-success btn-sm"
-                                                        style="font-size: 0.70rem; padding: 0.18rem 0.5rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
-                                                        @onclick="@(() => ResetSystemPromptToDefault(currentProfile))"
-                                                        title="Reset the system prompt to the built-in default">
-                                                    Reset to Default
-                                                </button>
+                                                <label class="form-label term-label mb-0" for="@($"defSysPrompt_{defIdx}")">
+                                                    System Prompt @if (agentDef.IsBuiltIn) { <span style="opacity: 0.5;">🔒</span> }
+                                                </label>
+                                                @if (!agentDef.IsBuiltIn)
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-outline-success btn-sm"
+                                                            style="font-size: 0.70rem; padding: 0.18rem 0.5rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
+                                                            @onclick="@(() => ResetSystemPromptToDefaultDef(currentDef))"
+                                                            title="Reset the system prompt to the built-in default">
+                                                        Reset to Default
+                                                    </button>
+                                                }
                                             </div>
-                                            <textarea id="@($"sysPromptArea_{profileIdx}")"
+                                            <textarea id="@($"defSysPrompt_{defIdx}")"
                                                       class="form-control term-textarea"
                                                       rows="8"
-                                                      @bind="profile.SystemPrompt"
-                                                      placeholder="@GetDefaultSystemPrompt(profile.AgentKey)"></textarea>
-                                            <span class="term-muted" style="opacity: 0.6; font-size: 0.75rem;">
-                                                Leave empty to use the built-in default prompt.
-                                            </span>
+                                                      disabled="@agentDef.IsBuiltIn"
+                                                      @bind="agentDef.SystemPrompt"></textarea>
                                         </div>
 
                                         <div class="agent-prompt-col">
                                             <div class="prompt-header">
-                                                <label class="form-label term-label mb-0" for="@($"instrArea_{profileIdx}")">Custom Instructions</label>
+                                                <label class="form-label term-label mb-0" for="@($"defUserTpl_{defIdx}")">
+                                                    User Prompt Template @if (agentDef.IsBuiltIn) { <span style="opacity: 0.5;">🔒</span> }
+                                                </label>
                                             </div>
-                                            <textarea id="@($"instrArea_{profileIdx}")"
+                                            <textarea id="@($"defUserTpl_{defIdx}")"
                                                       class="form-control term-textarea"
                                                       rows="8"
-                                                      @bind="profile.Instruction"
-                                                      placeholder="Additional instructions for this agent..."></textarea>
+                                                      disabled="@agentDef.IsBuiltIn"
+                                                      @bind="agentDef.UserPromptTemplate"
+                                                      placeholder="Use {key} placeholders for bag values"></textarea>
                                         </div>
                                     </div>
+
+                                    @* ── I/O Keys + Description ── *@
+                                    <div class="agent-settings-grid mt-3">
+                                        <label class="term-label">Input Keys</label>
+                                        <span class="term-muted" style="color: #58a6ff;">@string.Join(", ", agentDef.ExpectedInputKeys)</span>
+                                        <span></span>
+
+                                        <label class="term-label">Output Key</label>
+                                        <span class="term-muted" style="color: #58a6ff;">@agentDef.OutputKey</span>
+                                        <span></span>
+                                    </div>
+
+                                    @if (!agentDef.IsBuiltIn)
+                                    {
+                                        <div class="mt-3">
+                                            <button type="button"
+                                                    class="btn btn-outline-danger btn-sm"
+                                                    style="font-size: 0.72rem; padding: 0.2rem 0.6rem; font-family: 'Cascadia Code', monospace;"
+                                                    @onclick="@(() => RemoveCustomAgent(currentDef))">
+                                                Delete Agent
+                                            </button>
+                                        </div>
+                                    }
                                 </div>
                             </div>
                         </div>
 
-                        profileIdx++;
+                        defIdx++;
                     }
                 </div>
 
-                @if (_currentConfig.AgentProfiles.Count == 0)
+                @if (_currentConfig.AgentDefinitions.Count == 0)
                 {
-                    <span class="term-muted" style="opacity: 0.6;">No agent profiles configured yet.</span>
+                    <span class="term-muted" style="opacity: 0.6;">No agent definitions configured yet.</span>
                 }
             </div>
         }
@@ -957,22 +1002,10 @@ else
                 _modelChoices.Insert(0, _currentConfig.Ollama.Model);
             }
 
-            // Ensure default agent profiles exist when the backend returns none
-            if (_currentConfig.AgentProfiles.Count == 0)
+            // Ensure agent definitions exist when the backend returns none
+            if (_currentConfig.AgentDefinitions.Count == 0)
             {
-                var agentKeys = new[] { "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation" };
-                var defaultModel = _currentConfig.LlmProvider switch
-                {
-                    LlmProviderKind.LocalOllama => _currentConfig.Ollama?.Model ?? "ministral-3",
-                    LlmProviderKind.LocalFoundryLocal => _currentConfig.FoundryLocal?.ModelAlias ?? "phi-3.5-mini",
-                    LlmProviderKind.FoundryOpenAI => _currentConfig.AzureAIInference?.Model ?? "",
-                    LlmProviderKind.GitHubCopilot => _currentConfig.Copilot?.Model ?? "gpt-4.1",
-                    _ => "ministral-3"
-                };
-                foreach (var key in agentKeys)
-                {
-                    _currentConfig.AgentProfiles.Add(new AgentProfile { AgentKey = key, ModelId = defaultModel });
-                }
+                _currentConfig.AgentDefinitions = BuiltInAgentDefinitions.Create();
             }
         }
         catch
@@ -1004,9 +1037,9 @@ else
         }
     }
 
-    private static void SetCreativity(AgentProfile target, double incoming)
+    private static void SetCreativity(AgentDefinition target, double incoming)
     {
-        target.Creativity = incoming;
+        target.Temperature = incoming;
     }
 
     /// <summary>Returns the default model name for the currently-selected LLM provider.</summary>
@@ -1023,20 +1056,20 @@ else
         };
     }
 
-    /// <summary>Sets a single agent's model to the current provider default.</summary>
-    private void SetDefaultModelForAgent(AgentProfile profile)
+    /// <summary>Sets a single agent definition's model to the current provider default.</summary>
+    private void SetDefaultModelForAgentDef(AgentDefinition def)
     {
-        profile.ModelId = GetDefaultModel();
+        def.ModelId = GetDefaultModel();
     }
 
-    /// <summary>Sets all agent models to the current provider default.</summary>
+    /// <summary>Sets all agent definition models to the current provider default.</summary>
     private void SetDefaultModelToAll()
     {
         if (_currentConfig is null) return;
         var defaultModel = GetDefaultModel();
-        foreach (var profile in _currentConfig.AgentProfiles)
+        foreach (var def in _currentConfig.AgentDefinitions)
         {
-            profile.ModelId = defaultModel;
+            def.ModelId = defaultModel;
         }
     }
 
@@ -1049,10 +1082,37 @@ else
             : "";
     }
 
-    /// <summary>Resets an agent's system prompt to the built-in default (empty = use default).</summary>
-    private void ResetSystemPromptToDefault(AgentProfile profile)
+    /// <summary>Resets an agent definition's system prompt to the built-in default.</summary>
+    private void ResetSystemPromptToDefaultDef(AgentDefinition def)
     {
-        profile.SystemPrompt = GetDefaultSystemPrompt(profile.AgentKey);
+        def.SystemPrompt = GetDefaultSystemPrompt(def.AgentKey);
+    }
+
+    /// <summary>Adds a new custom agent definition.</summary>
+    private void AddCustomAgent()
+    {
+        if (_currentConfig is null) return;
+        var newAgent = new AgentDefinition
+        {
+            AgentKey = $"custom-{Guid.NewGuid().ToString()[..8]}",
+            DisplayName = "New Custom Agent",
+            IsBuiltIn = false,
+            SystemPrompt = "You are a helpful AI assistant.",
+            UserPromptTemplate = "{spec}",
+            ModelId = GetDefaultModel(),
+            Temperature = 0.7,
+            ExpectedInputKeys = ["spec"],
+            OutputKey = "custom_output",
+            Description = "A custom agent."
+        };
+        _currentConfig.AgentDefinitions.Add(newAgent);
+    }
+
+    /// <summary>Removes a custom agent definition.</summary>
+    private void RemoveCustomAgent(AgentDefinition def)
+    {
+        if (_currentConfig is null || def.IsBuiltIn) return;
+        _currentConfig.AgentDefinitions.Remove(def);
     }
 
     private async Task TestConnection()
