@@ -13,17 +13,11 @@
     .pd-page {
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 3.5rem);
-        margin: -1.5rem;
+        height: calc(100vh - 5.5rem);
         overflow: hidden;
         font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
     }
-    .pd-page-header {
-        padding: 0.6rem 1rem;
-        background: #0d1117;
-        border-bottom: 1px solid #1a4d2e;
-        flex-shrink: 0;
-    }
+
     .pd-layout {
         display: grid;
         grid-template-columns: 200px minmax(0, 1fr) 240px;
@@ -405,11 +399,7 @@
 
 @* ── Page container ── *@
 <div class="pd-page">
-    <div class="pd-page-header">
-        <h3 style="color: #33ff77; font-size: 1.2rem; margin: 0;">
-            Pipeline Designer
-        </h3>
-    </div>
+
 
 @if (_loadFailed)
 {
@@ -463,6 +453,18 @@ else
                                     @onclick="() => OpenEditAgentModal(agent)">&#x270E;</button>
                         </div>
                         <div class="pd-agent-key">@agent.AgentKey</div>
+                    </div>
+                </div>
+            }
+
+            @* Pipeline templates *@
+            <div class="pd-group-label" style="margin-top: 1.2rem;">Templates</div>
+            @foreach (var tpl in _templates)
+            {
+                <div class="pd-agent-item" @onclick="() => LoadTemplateAsync(tpl)" title="@tpl.Description">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; color: #33ff77; font-size: 0.76rem;">@tpl.Name</div>
+                        <div class="pd-agent-key" style="white-space: normal;">@tpl.Description</div>
                     </div>
                 </div>
             }

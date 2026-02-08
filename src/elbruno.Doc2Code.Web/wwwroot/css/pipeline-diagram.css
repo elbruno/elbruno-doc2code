@@ -10,6 +10,33 @@
     --d2c-red: #f04848;
 }
 
+/* ── Shared site header ── */
+.d2c-site-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.6rem 1.5rem;
+    background: var(--d2c-bg-panel);
+    border-bottom: 1px solid #1a4d2e;
+    flex-shrink: 0;
+}
+.d2c-site-title {
+    color: var(--d2c-fg);
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 1.3rem;
+    margin: 0;
+    white-space: nowrap;
+}
+.d2c-site-nav {
+    display: flex;
+    gap: 0.6rem;
+}
+.d2c-site-nav .d2c-nav-btn {
+    text-decoration: none;
+    font-size: 0.86rem;
+    padding: 0.3rem 1rem;
+}
+
 /* ── Main wrapper ── */
 .d2c-wrap {
     font-family: 'Cascadia Mono', 'Fira Code', 'Consolas', monospace;

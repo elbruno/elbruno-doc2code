@@ -5,25 +5,12 @@
 
 <div class="d2c-wrap">
 
-    @* ── Header with side-by-side navigation ── *@
-    <div style="margin-bottom: 1.2rem;">
-        <h2 style="color: var(--d2c-fg); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; margin-bottom: 0.6rem;">
-            elbruno.Doc2Code
-        </h2>
-        <div style="display: flex; gap: 0.8rem;">
-            <span class="d2c-nav-btn d2c-nav-btn-active">&#x25B6; Generate</span>
-            <a href="/pipeline-designer" class="d2c-nav-btn" style="text-decoration: none;">&#x1F527; Pipeline</a>
-            <a href="/settings" class="d2c-nav-btn" style="text-decoration: none;">&#x2699; Settings</a>
-        </div>
-    </div>
-
     @* ── A. Upload Section ── *@
     <div class="d2c-upload-zone">
         <div style="margin-bottom: 0.7rem; letter-spacing: 0.12em; font-size: 0.9rem;">
             DROP REQUIREMENTS DOCUMENT HERE
         </div>
-        <InputFile accept=".txt,.md,.docx,.pdf"
-                   OnChange="@OnDocumentChosen"
+        <InputFile accept=".txt,.md,.docx,.pdf" OnChange="@OnDocumentChosen"
                    style="max-width: 26rem; color: var(--d2c-fg);" />
     </div>
 
@@ -36,8 +23,7 @@
 
     <div style="margin: 1rem 0;">
         <button class="btn btn-outline-success btn-lg d2c-launch-btn"
-                disabled="@(_chosenDoc is null || _pipelineActive)"
-                @onclick="LaunchGeneration">
+                disabled="@(_chosenDoc is null || _pipelineActive)" @onclick="LaunchGeneration">
             @if (_pipelineActive)
             {
                 <span>GENERATING\u2026</span>
@@ -78,8 +64,8 @@
                         <div class="d2c-pipeline-node @NodeCssState(agentKey)">
                             @agentKey
                             @if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase)
-                                && _pipelineActive
-                                && _currentStreamingText.ContainsKey(agentKey))
+                                                            && _pipelineActive
+                                                            && _currentStreamingText.ContainsKey(agentKey))
                             {
                                 <div class="d2c-streaming-indicator">streaming<span class="d2c-blink">…</span></div>
                             }
@@ -94,8 +80,8 @@
                                 <div class="d2c-pipeline-node @NodeCssState(agentKey)">
                                     @agentKey
                                     @if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase)
-                                        && _pipelineActive
-                                        && _currentStreamingText.ContainsKey(agentKey))
+                                                                            && _pipelineActive
+                                                                            && _currentStreamingText.ContainsKey(agentKey))
                                     {
                                         <div class="d2c-streaming-indicator">streaming<span class="d2c-blink">…</span></div>
                                     }
@@ -189,10 +175,10 @@
                     var severityCss = logItem.Severity switch
                     {
                         LogSeverity.Informational => "d2c-log-info",
-                        LogSeverity.Caution       => "d2c-log-warn",
-                        LogSeverity.Failure       => "d2c-log-err",
-                        LogSeverity.Trace         => "d2c-log-trace",
-                        _                         => "d2c-log-info"
+                        LogSeverity.Caution => "d2c-log-warn",
+                        LogSeverity.Failure => "d2c-log-err",
+                        LogSeverity.Trace => "d2c-log-trace",
+                        _ => "d2c-log-info"
                     };
                     <div class="@severityCss">
                         [@logItem.OccurredAt.ToString("HH:mm:ss")] [@logItem.SourceAgent] @logItem.Text
@@ -202,11 +188,12 @@
 
             @* ── Live Agent Output (streaming) ── *@
             @if (_pipelineActive && !string.IsNullOrEmpty(_activeAgentName)
-                && _currentStreamingText.TryGetValue(_activeAgentName, out var streamText)
-                && !string.IsNullOrEmpty(streamText))
+                            && _currentStreamingText.TryGetValue(_activeAgentName, out var streamText)
+                            && !string.IsNullOrEmpty(streamText))
             {
                 <div class="d2c-streaming-section">
-                    <div class="d2c-streaming-label">LIVE AGENT OUTPUT — @_activeAgentName<span class="d2c-blink">_</span></div>
+                    <div class="d2c-streaming-label">LIVE AGENT OUTPUT — @_activeAgentName<span class="d2c-blink">_</span>
+                    </div>
                     <pre class="d2c-streaming-content">@streamText</pre>
                 </div>
             }

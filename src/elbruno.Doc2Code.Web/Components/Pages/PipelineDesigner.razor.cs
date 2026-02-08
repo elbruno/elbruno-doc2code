@@ -23,6 +23,7 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     private PipelineDefinition? _activePipeline;
     private PipelineStepDefinition? _selectedStep;
     private AgentDefinition? _selectedStepAgent;
+    private readonly List<PipelineDefinition> _templates = PipelineTemplates.CreateAll();
 
     // ── UI state ────────────────────────────────────────────────────
     private bool _loadFailed;
@@ -478,6 +479,40 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     {
         await Js.InvokeVoidAsync("pipelineCanvas.autoLayout");
         ShowStatus("Layout applied.");
+    }
+
+    // ── Template loading ────────────────────────────────────────────
+
+    private async Task LoadTemplateAsync(PipelineDefinition template)
+    {
+        try
+        {
+            // Deep-clone the template so each use is independent
+            var json = JsonSerializer.Serialize(template, _jsonOpts);
+            var cloned = JsonSerializer.Deserialize<PipelineDefinition>(json, _jsonOpts);
+            if (cloned is null) { ShowStatus("Failed to load template.", isError: true); return; }
+
+            cloned.Id = Guid.NewGuid().ToString();
+            cloned.Name = template.Name + " (copy)";
+            cloned.IsDefault = false;
+            cloned.IsActive = false;
+
+            var created = await SettingsClient.CreatePipelineAsync(cloned);
+            if (created is not null)
+            {
+                _pipelines.Add(created);
+                await SelectPipelineAsync(created);
+                ShowStatus($"Pipeline created from template: {template.Name}");
+            }
+            else
+            {
+                ShowStatus("Backend did not return the created pipeline.", isError: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Template load failed: {ex.Message}", isError: true);
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────

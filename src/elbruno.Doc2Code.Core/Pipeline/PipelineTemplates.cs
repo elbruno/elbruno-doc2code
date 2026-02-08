@@ -8,14 +8,34 @@ using elbruno.Doc2Code.Core.Models;
 /// </summary>
 public static class PipelineTemplates
 {
-    /// <summary>Returns all 4 pre-built pipeline templates.</summary>
+    /// <summary>Returns all 5 pre-built pipeline templates (including blank).</summary>
     public static List<PipelineDefinition> CreateAll() =>
     [
+        CreateBlank(),
         CreateDefault(),
         CreateCodeOnly(),
         CreateQuickPrototype(),
         CreateFullQA()
     ];
+
+    /// <summary>Blank pipeline: only the two bookend nodes (Document Input → Generated Assets).</summary>
+    public static PipelineDefinition CreateBlank()
+    {
+        var docInput = MakeDocumentInputStep(100, 200);
+        var assets = MakeGeneratedAssetsStep(500, 200);
+
+        return new PipelineDefinition
+        {
+            Id = "blank-pipeline",
+            Name = "Blank",
+            Description = "Empty canvas with only the start and end nodes — build your own pipeline from scratch.",
+            Steps = [docInput, assets],
+            Edges =
+            [
+                new PipelineEdge { SourceStepId = docInput.StepId, TargetStepId = assets.StepId, OutputKeyMapping = "spec" },
+            ]
+        };
+    }
 
     // ── Bookend step helpers ────────────────────────────────────────
 

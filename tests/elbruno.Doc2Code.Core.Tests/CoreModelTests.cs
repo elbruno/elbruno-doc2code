@@ -582,10 +582,19 @@ public class CoreModelTests
     // --- Pipeline Templates ---
 
     [Fact]
-    public void PipelineTemplates_CreateAll_Returns4Templates()
+    public void PipelineTemplates_CreateAll_Returns5Templates()
     {
         var templates = PipelineTemplates.CreateAll();
-        templates.Should().HaveCount(4);
+        templates.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public void PipelineTemplates_Blank_HasOnly2BookendSteps()
+    {
+        var blank = PipelineTemplates.CreateBlank();
+        blank.Steps.Should().HaveCount(2);
+        blank.Steps.Should().OnlyContain(s => s.IsBookend);
+        blank.Edges.Should().HaveCount(1);
     }
 
     [Fact]
