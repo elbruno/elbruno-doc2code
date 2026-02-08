@@ -56,37 +56,89 @@
         </div>
     }
 
-    @* ── B. Pipeline Viewer ── *@
+    @* ── B. Pipeline Viewer (Dynamic DAG) ── *@
     <details open>
         <summary class="d2c-details-toggle">PIPELINE STATUS</summary>
 
-        <div class="d2c-pipeline-row">
-            @{
-                var agentKeys = new[] { "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation" };
-            }
-            @for (var idx = 0; idx < agentKeys.Length; idx++)
-            {
-                var agentKey = agentKeys[idx];
-                @if (idx > 0)
+        @if (_pipelineLevels.Count > 0)
+        {
+            <div class="d2c-pipeline-row" style="flex-wrap: wrap; align-items: flex-start;">
+                @for (var levelIdx = 0; levelIdx < _pipelineLevels.Count; levelIdx++)
                 {
-                    <span class="d2c-pipeline-connector @ConnectorCssState(idx - 1)">&rarr;</span>
-                }
-                <div class="d2c-pipeline-node @NodeCssState(agentKey)">
-                    @agentKey
-                    @if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase)
-                        && _pipelineActive
-                        && _currentStreamingText.ContainsKey(agentKey))
+                    var level = _pipelineLevels[levelIdx];
+
+                    @if (levelIdx > 0)
                     {
-                        <div class="d2c-streaming-indicator">streaming<span class="d2c-blink">…</span></div>
+                        <span class="d2c-pipeline-connector @ConnectorCssState(levelIdx - 1)">&rarr;</span>
                     }
-                </div>
-            }
-        </div>
+
+                    @if (level.Count == 1)
+                    {
+                        var agentKey = level[0];
+                        <div class="d2c-pipeline-node @NodeCssState(agentKey)">
+                            @agentKey
+                            @if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase)
+                                && _pipelineActive
+                                && _currentStreamingText.ContainsKey(agentKey))
+                            {
+                                <div class="d2c-streaming-indicator">streaming<span class="d2c-blink">…</span></div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        @* Parallel agents stacked vertically *@
+                        <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                            @foreach (var agentKey in level)
+                            {
+                                <div class="d2c-pipeline-node @NodeCssState(agentKey)">
+                                    @agentKey
+                                    @if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase)
+                                        && _pipelineActive
+                                        && _currentStreamingText.ContainsKey(agentKey))
+                                    {
+                                        <div class="d2c-streaming-indicator">streaming<span class="d2c-blink">…</span></div>
+                                    }
+                                </div>
+                            }
+                            <div style="font-size: 0.65rem; text-align: center; color: var(--d2c-dim);">parallel</div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+        else
+        {
+            @* Fallback to hardcoded pipeline if not loaded *@
+            <div class="d2c-pipeline-row">
+                @{
+                    var agentKeys = new[] { "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation" };
+                }
+                @for (var idx = 0; idx < agentKeys.Length; idx++)
+                {
+                    var agentKey = agentKeys[idx];
+                    @if (idx > 0)
+                    {
+                        <span class="d2c-pipeline-connector">&rarr;</span>
+                    }
+                    <div class="d2c-pipeline-node @NodeCssState(agentKey)">
+                        @agentKey
+                    </div>
+                }
+            </div>
+        }
 
         <div class="d2c-stage-line">
             @if (!string.IsNullOrEmpty(_currentStageName))
             {
                 <span>@_currentStageName &mdash; @_progressPct%</span>
+
+                @if (_latestPipelineState?.ParallelPeers is { Count: > 1 } peers)
+                {
+                    <span style="margin-left: 0.6rem; font-size: 0.75rem; color: var(--d2c-dim);">
+                        [parallel: @string.Join(" ∥ ", peers)]
+                    </span>
+                }
             }
             else
             {
