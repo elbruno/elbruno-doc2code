@@ -11,6 +11,7 @@
     <EnableAspireWorkloadDeprecationWarning>false</EnableAspireWorkloadDeprecationWarning>
 	  <!-- Display name shown in Aspire dashboard (top-left) -->
 	  <AssemblyTitle>El Bruno - Doc2Code</AssemblyTitle>
+	  <UserSecretsId>ef061a42-d15e-4d68-b9ae-86033568b509</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting" Version="13.1.0" />

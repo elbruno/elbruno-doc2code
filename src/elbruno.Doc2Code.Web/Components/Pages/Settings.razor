@@ -163,19 +163,24 @@
         font-size: 0.85rem;
     }
 
-    /* ── Azure AI Inference grid layout ── */
-    .azure-settings-grid {
+    /* ── Unified 2-column form grid for all settings panels ── */
+    .settings-form-grid {
         display: grid;
-        grid-template-columns: 8rem 1fr;
+        grid-template-columns: 14rem 1fr;
         gap: 0.6rem 1rem;
         align-items: center;
     }
-    .azure-settings-grid .term-label {
+    .settings-form-grid .term-label {
         margin-bottom: 0;
         white-space: nowrap;
     }
-    .azure-settings-grid .term-input {
+    .settings-form-grid .term-input,
+    .settings-form-grid .term-select {
         width: 100%;
+    }
+    .settings-form-grid .term-muted {
+        grid-column: 2;
+        margin-top: -0.3rem;
     }
     .term-btn-outline {
         background-color: transparent;
@@ -419,16 +424,14 @@ else
                 <div class="term-card">
                     <h5 class="term-heading">Ollama Settings</h5>
 
-                    <div class="mb-3">
-                        <label class="form-label term-label" for="cfgOllamaEndpoint">Endpoint URL</label>
+                    <div class="settings-form-grid">
+                        <label class="term-label" for="cfgOllamaEndpoint">Endpoint URL</label>
                         <input type="text" id="cfgOllamaEndpoint" class="form-control term-input"
                                @bind="_currentConfig.Ollama.Endpoint" />
-                    </div>
 
-                    <div class="mb-1">
-                        <label class="form-label term-label" for="cfgOllamaModel">Model Name</label>
+                        <label class="term-label" for="cfgOllamaModel">Model Name</label>
                         <select id="cfgOllamaModel" class="form-select term-select"
-                                @bind="_currentConfig.Ollama.Model" style="min-width: 16rem;">
+                                @bind="_currentConfig.Ollama.Model">
                             @foreach (var modelOpt in _modelChoices)
                             {
                                 <option value="@modelOpt">@modelOpt</option>
@@ -499,13 +502,12 @@ else
                 <div class="term-card">
                     <h5 class="term-heading">FoundryLocal Settings</h5>
 
-                    <div class="mb-3">
-                        <label class="form-label term-label" for="cfgFoundryAlias">Model Alias</label>
+                    <div class="settings-form-grid">
+                        <label class="term-label" for="cfgFoundryAlias">Model Alias</label>
                         <input type="text" id="cfgFoundryAlias" class="form-control term-input"
                                @bind="_currentConfig.FoundryLocal.ModelAlias" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label term-label" for="cfgFoundryEndpoint">Endpoint</label>
+
+                        <label class="term-label" for="cfgFoundryEndpoint">Endpoint</label>
                         <input type="text" id="cfgFoundryEndpoint" class="form-control term-input"
                                @bind="_currentConfig.FoundryLocal.Endpoint" />
                     </div>
@@ -568,18 +570,18 @@ else
                 <div class="term-card">
                     <h5 class="term-heading">Azure AI Inference Settings</h5>
 
-                    <div class="azure-settings-grid">
-                        <label class="term-label" for="cfgAzureEndpoint">ENDPOINT</label>
+                    <div class="settings-form-grid">
+                        <label class="term-label" for="cfgAzureEndpoint">Endpoint</label>
                         <input type="text" id="cfgAzureEndpoint" class="form-control term-input"
                                placeholder="https://your-resource.services.ai.azure.com/models"
                                @bind="_currentConfig.AzureAIInference.Endpoint" />
 
-                        <label class="term-label" for="cfgAzureModel">MODEL</label>
+                        <label class="term-label" for="cfgAzureModel">Model</label>
                         <input type="text" id="cfgAzureModel" class="form-control term-input"
                                placeholder="gpt-4o-mini"
                                @bind="_currentConfig.AzureAIInference.Model" />
 
-                        <label class="term-label" for="cfgAzureKey">API KEY</label>
+                        <label class="term-label" for="cfgAzureKey">API Key</label>
                         <input type="password" id="cfgAzureKey" class="form-control term-input"
                                @bind="_currentConfig.AzureAIInference.ApiKey" />
                     </div>
@@ -644,21 +646,17 @@ else
                         A GitHub Copilot subscription is required.
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label term-label" for="cfgCopilotModel">Model</label>
+                    <div class="settings-form-grid">
+                        <label class="term-label" for="cfgCopilotModel">Model</label>
                         <input type="text" id="cfgCopilotModel" class="form-control term-input"
                                placeholder="gpt-4.1"
                                @bind="_currentConfig.Copilot.Model" />
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label term-label" for="cfgCopilotToken">GitHub Token (optional)</label>
+                        <label class="term-label" for="cfgCopilotToken">GitHub Token (optional)</label>
                         <input type="password" id="cfgCopilotToken" class="form-control term-input"
                                @bind="_currentConfig.Copilot.GitHubToken" />
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label term-label" for="cfgCopilotCli">CLI Path (optional)</label>
+                        <label class="term-label" for="cfgCopilotCli">CLI Path (optional)</label>
                         <input type="text" id="cfgCopilotCli" class="form-control term-input"
                                placeholder="copilot"
                                @bind="_currentConfig.Copilot.CliPath" />
@@ -876,16 +874,14 @@ else
             <div class="term-card">
                 <h5 class="term-heading">Source Control</h5>
 
-                <div class="mb-3">
-                    <label class="form-label term-label" for="cfgGhToken">GitHub Token</label>
+                <div class="settings-form-grid">
+                    <label class="term-label" for="cfgGhToken">GitHub Token</label>
                     <input type="password"
                            id="cfgGhToken"
                            class="form-control term-input"
                            @bind="_gitHubToken" />
-                </div>
 
-                <div>
-                    <label class="form-label term-label" for="cfgGhOwner">Owner / Organization</label>
+                    <label class="term-label" for="cfgGhOwner">Owner / Organization</label>
                     <input type="text"
                            id="cfgGhOwner"
                            class="form-control term-input"
