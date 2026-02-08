@@ -10,16 +10,20 @@ using elbruno.Doc2Code.Core.Abstractions;
 using elbruno.Doc2Code.DocumentProcessing;
 using Microsoft.Extensions.AI;
 using elbruno.Doc2Code.LlmProviders;
+using elbruno.Doc2Code.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddApiKeyAuth();
 
 builder.Services.AddSignalR();
 
+builder.Services.AddTransient<ApiKeyDelegatingHandler>();
 builder.Services.AddScoped<RemoteSettingsClient>();
 builder.Services.AddHttpClient<RemoteSettingsClient>(c =>
-    c.BaseAddress = new Uri("https+http://settingsservice"));
+    c.BaseAddress = new Uri("https+http://settingsservice"))
+    .AddHttpMessageHandler<ApiKeyDelegatingHandler>();
 builder.Services.AddSingleton<ISettingsStore>(sp => sp.GetRequiredService<RemoteSettingsClient>());
 
 // LLM client provider — reads settings from SettingsService and creates the appropriate IChatClient
@@ -61,6 +65,8 @@ catch (Exception ex)
 
 // aspire map default endpoints
 app.MapDefaultEndpoints();
+
+app.UseApiKeyAuth();
 
 app.MapDoc2CodeRoutes();
 app.Run();

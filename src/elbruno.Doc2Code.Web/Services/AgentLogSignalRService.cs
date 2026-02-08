@@ -2,7 +2,9 @@
 namespace elbruno.Doc2Code.Web.Services;
 
 using elbruno.Doc2Code.Core.Models;
+using elbruno.Doc2Code.ServiceDefaults;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Options;
 
 /// <summary>
 /// Wraps a <see cref="HubConnection"/> to the ApiService agent-log hub,
@@ -18,14 +20,24 @@ public sealed class AgentLogSignalRService : IAsyncDisposable
     public event Action<string>? RunFinished;
     public event Action<AgentLogEntry>? StreamingChunkArrived;
 
-    public AgentLogSignalRService(IConfiguration appConfig)
+    public AgentLogSignalRService(IConfiguration appConfig, IOptions<ApiKeyAuthOptions> apiKeyOptions)
     {
         var baseUrl = appConfig["services:apiservice:https:0"]
                       ?? appConfig["services:apiservice:http:0"]
                       ?? "https://localhost:5001";
 
+        var hubUrl = $"{baseUrl}/hubs/agent-log";
+        var apiKey = apiKeyOptions.Value.Key;
+
         _hub = new HubConnectionBuilder()
-            .WithUrl($"{baseUrl}/hubs/agent-log")
+            .WithUrl(hubUrl, opts =>
+            {
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    opts.Headers[ApiKeyAuthOptions.HeaderName] = apiKey;
+                    opts.AccessTokenProvider = () => Task.FromResult<string?>(apiKey);
+                }
+            })
             .WithAutomaticReconnect()
             .Build();
 
