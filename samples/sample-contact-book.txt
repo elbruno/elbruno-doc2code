@@ -1,0 +1,25 @@
+# Contact Book
+
+## Overview
+A simple console application to manage a personal contact book.
+Users can add, list, search, and delete contacts.
+
+## Actors
+- **User**: manages their contacts
+
+## Domain Entities
+
+### Contact
+- Name (text, required)
+- Email (text, optional)
+- Phone (text, optional)
+- Category: Personal, Work, Family
+
+## Business Rules
+- BR01: Name is required and must not be empty
+- BR02: At least one of Email or Phone must be provided
+- BR03: Email must contain an '@' character if provided
+- BR04: No two contacts may share the same Email
+
+## State Machines
+None — contacts are simply created and deleted.

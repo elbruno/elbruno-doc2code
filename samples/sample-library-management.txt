@@ -1,0 +1,65 @@
+# Sistema de Gestión de Biblioteca
+
+## Introducción
+Se requiere un sistema para gestionar el catálogo de libros, préstamos y usuarios de una biblioteca municipal. El sistema debe controlar el inventario, registrar préstamos y devoluciones, y gestionar multas por retraso.
+
+## Actores
+- **Bibliotecario**: gestiona el catálogo, registra préstamos y devoluciones, aplica multas
+- **Lector**: consulta el catálogo, solicita préstamos, consulta su historial
+- **Administrador**: configura parámetros del sistema, genera reportes
+
+## Entidades Principales
+
+### Libro
+- Título (texto, obligatorio)
+- Autor (texto, obligatorio)
+- ISBN (texto, único)
+- Categoría (texto)
+- Estado: Disponible, Prestado, En reparación, Dado de baja
+- Cantidad total (número)
+- Cantidad disponible (número)
+
+### Lector
+- Nombre completo (texto, obligatorio)
+- Número de socio (texto, único)
+- Email (texto)
+- Tipo de membresía: Estándar, Premium
+- Estado: Activo, Suspendido
+
+### Préstamo
+- Libro (referencia)
+- Lector (referencia)
+- Fecha de préstamo (fecha)
+- Fecha de devolución esperada (fecha)
+- Fecha de devolución real (fecha, opcional)
+- Estado: Activo, Devuelto, Vencido
+
+## Reglas de Negocio
+
+- RN01: Un lector Estándar puede tener máximo 3 préstamos activos simultáneos
+- RN02: Un lector Premium puede tener máximo 6 préstamos activos simultáneos
+- RN03: El plazo de préstamo es de 14 días para Estándar y 21 días para Premium
+- RN04: Si un préstamo se devuelve después de la fecha esperada, se genera una multa de $1 por día de retraso
+- RN05: Un lector con multas pendientes no puede solicitar nuevos préstamos
+- RN06: Un lector Suspendido no puede solicitar préstamos
+
+## Máquinas de Estado
+
+### Estado del Libro
+- Disponible → Prestado (cuando se registra un préstamo)
+- Prestado → Disponible (cuando se devuelve)
+- Disponible → En reparación (cuando necesita mantenimiento)
+- En reparación → Disponible (cuando se completa la reparación)
+- Cualquier estado → Dado de baja (cuando se retira del catálogo)
+
+### Estado del Préstamo
+- Activo → Devuelto (cuando el lector devuelve el libro)
+- Activo → Vencido (cuando pasa la fecha de devolución esperada)
+- Vencido → Devuelto (cuando el lector devuelve el libro con retraso)
+
+## Requisitos No Funcionales
+
+- El sistema debe soportar al menos 500 usuarios concurrentes
+- Los tiempos de respuesta para consultas al catálogo deben ser menores a 2 segundos
+- Los datos de los lectores deben almacenarse de forma segura siguiendo las normativas de protección de datos
+- El sistema debe generar logs de auditoría para todas las operaciones de préstamo y devolución

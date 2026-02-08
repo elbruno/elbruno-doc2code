@@ -1,0 +1,16 @@
+{
+  "name": "doc2code-e2e-tests",
+  "version": "1.0.0",
+  "description": "Playwright end-to-end tests and screenshot generator for elbruno.Doc2Code",
+  "private": true,
+  "scripts": {
+    "test": "npx playwright test",
+    "screenshots": "npx playwright test user-manual-screenshots",
+    "generate-manual": "npx playwright test user-manual-screenshots && npx ts-node generate-docs.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}

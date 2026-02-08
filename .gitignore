@@ -61,6 +61,9 @@ TestResults/
 # Roslyn analyzers
 .analysisroot/
 
+# Settings with secrets
+src/elbruno.Doc2Code.SettingsService/data/settings.json
+
 # Project files
 .DS_Store
 Thumbs.db

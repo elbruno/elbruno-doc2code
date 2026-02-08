@@ -1,0 +1,1060 @@
+@page "/settings"
+@using elbruno.Doc2Code.Web.Services
+@using elbruno.Doc2Code.Core.DTOs
+@using elbruno.Doc2Code.Core.Models
+@inject SettingsApiClient _settingsClient
+@inject GenerationApiClient _generationClient
+
+<PageTitle>Settings</PageTitle>
+
+<style>
+    .term-card {
+        background-color: #0d1117;
+        border: 1px solid #33ff77;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    .term-heading {
+        color: #33ff77;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        margin-bottom: 0.8rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+    }
+    .term-label {
+        color: #33ff77;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.9rem;
+        margin-bottom: 0.3rem;
+    }
+    .term-input {
+        background-color: #161b22 !important;
+        border: 1px solid #33ff77 !important;
+        color: #33ff77 !important;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace !important;
+    }
+    .term-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(51, 255, 119, 0.25) !important;
+        border-color: #33ff77 !important;
+    }
+    .term-input::placeholder {
+        color: #3b5a3b !important;
+    }
+    .term-select {
+        background-color: #161b22 !important;
+        border: 1px solid #33ff77 !important;
+        color: #33ff77 !important;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace !important;
+    }
+    .term-select:focus {
+        box-shadow: 0 0 0 0.2rem rgba(51, 255, 119, 0.25) !important;
+    }
+    .term-select option {
+        background-color: #161b22;
+        color: #33ff77;
+    }
+    .term-switch .form-check-input {
+        background-color: #161b22;
+        border-color: #33ff77;
+        cursor: pointer;
+    }
+    .term-switch .form-check-input:checked {
+        background-color: #33ff77;
+        border-color: #33ff77;
+    }
+    .term-switch .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(51, 255, 119, 0.25);
+    }
+    .term-switch .form-check-label {
+        color: #c9d1d9;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.88rem;
+    }
+    .term-divider {
+        border-top: 1px solid #33ff77;
+        opacity: 0.4;
+        margin: 0.9rem 0;
+    }
+    .term-rec-card {
+        background-color: #161b22;
+        border: 1px solid #33ff77;
+        border-radius: 0.4rem;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        color: #c9d1d9;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.88rem;
+    }
+    .term-rec-card strong {
+        color: #33ff77;
+    }
+    .term-rec-card code {
+        color: #58a6ff;
+        background-color: transparent;
+    }
+    .term-accordion .accordion-item {
+        background-color: #0d1117;
+        border: 1px solid #33ff77;
+    }
+    .term-accordion .accordion-button {
+        background-color: #161b22;
+        color: #33ff77;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-weight: 600;
+        box-shadow: none;
+    }
+    .term-accordion .accordion-button:not(.collapsed) {
+        background-color: #1c2733;
+        color: #33ff77;
+    }
+    .term-accordion .accordion-button::after {
+        filter: invert(68%) sepia(74%) saturate(500%) hue-rotate(90deg);
+    }
+    .term-accordion .accordion-body {
+        background-color: #0d1117;
+        padding: 1rem;
+    }
+    .term-range {
+        width: 100%;
+    }
+    .term-range::-webkit-slider-thumb {
+        background: #33ff77;
+    }
+    .term-range::-moz-range-thumb {
+        background: #33ff77;
+    }
+    .term-btn-save {
+        background-color: #33ff77;
+        color: #0d1117;
+        border: none;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-weight: 700;
+        padding: 0.55rem 1.5rem;
+        border-radius: 0.4rem;
+        cursor: pointer;
+    }
+    .term-btn-save:hover {
+        background-color: #28cc5f;
+        color: #0d1117;
+    }
+    .term-textarea {
+        background-color: #161b22 !important;
+        border: 1px solid #33ff77 !important;
+        color: #33ff77 !important;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace !important;
+        resize: vertical;
+    }
+    .term-textarea:focus {
+        box-shadow: 0 0 0 0.2rem rgba(51, 255, 119, 0.25) !important;
+        border-color: #33ff77 !important;
+    }
+    .term-page-title {
+        color: #33ff77;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 1.4rem;
+    }
+    .term-muted {
+        color: #6e7681;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.85rem;
+    }
+
+    /* ── Azure AI Inference grid layout ── */
+    .azure-settings-grid {
+        display: grid;
+        grid-template-columns: 8rem 1fr;
+        gap: 0.6rem 1rem;
+        align-items: center;
+    }
+    .azure-settings-grid .term-label {
+        margin-bottom: 0;
+        white-space: nowrap;
+    }
+    .azure-settings-grid .term-input {
+        width: 100%;
+    }
+    .term-btn-outline {
+        background-color: transparent;
+        color: #33ff77;
+        border: 1px solid #33ff77;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 0.4rem 1rem;
+        border-radius: 0.4rem;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .term-btn-outline:hover {
+        background-color: #33ff77;
+        color: #0d1117;
+    }
+    .term-btn-outline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .term-help-box {
+        background-color: #1c2733;
+        border: 1px solid #33ff77;
+        border-radius: 0.4rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.82rem;
+        color: #c9d1d9;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    .term-help-box code {
+        color: #58a6ff;
+        background-color: transparent;
+    }
+    .term-help-box strong {
+        color: #33ff77;
+    }
+    .term-test-result {
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.82rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.4rem;
+        margin-top: 0.5rem;
+    }
+    .term-test-ok {
+        background-color: #0d2818;
+        border: 1px solid #33ff77;
+        color: #33ff77;
+    }
+    .term-test-fail {
+        background-color: #2d1117;
+        border: 1px solid #c00;
+        color: #ff6b6b;
+    }
+
+    /* ── Tab bar ── */
+    .term-tab-bar {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid #1e2a22;
+        margin-bottom: 1.5rem;
+    }
+    .term-tab-btn {
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.88rem;
+        font-weight: 600;
+        padding: 0.55rem 1.2rem;
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: #6e7681;
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s, text-shadow 0.2s;
+    }
+    .term-tab-btn:hover {
+        color: #33ff77;
+        text-shadow: 0 0 6px rgba(51, 255, 119, 0.2);
+    }
+    .term-tab-btn.active {
+        color: #33ff77;
+        border-bottom-color: #33ff77;
+        text-shadow: 0 0 8px rgba(51, 255, 119, 0.35);
+    }
+
+    /* ── Radio group for provider selector ── */
+    .term-radio-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .term-radio .form-check-input {
+        background-color: #161b22;
+        border-color: #33ff77;
+        cursor: pointer;
+    }
+    .term-radio .form-check-input:checked {
+        background-color: #33ff77;
+        border-color: #33ff77;
+    }
+    .term-radio .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(51, 255, 119, 0.25);
+    }
+    .term-radio .form-check-label {
+        color: #c9d1d9;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 0.88rem;
+    }
+</style>
+
+<div class="d2c-wrap">
+
+    @* ── Header with side-by-side navigation ── *@
+    <div style="margin-bottom: 1.2rem;">
+        <h2 style="color: var(--d2c-fg); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; margin-bottom: 0.6rem;">
+            elbruno.Doc2Code
+        </h2>
+        <div style="display: flex; gap: 0.8rem;">
+            <a href="/" class="d2c-nav-btn" style="text-decoration: none;">&#x25B6; Generate</a>
+            <span class="d2c-nav-btn d2c-nav-btn-active">&#x2699; Settings</span>
+        </div>
+    </div>
+
+<h3 class="term-page-title">Settings</h3>
+
+@if (_loadFailed)
+{
+    <div class="alert" style="background-color: #2d1117; border: 1px solid #c00; color: #ff6b6b; font-family: monospace;" role="alert">
+        <strong>Load error:</strong> Could not retrieve configuration from the backend.
+    </div>
+}
+else if (_currentConfig is null)
+{
+    <span class="term-muted">Loading configuration&#8230;</span>
+}
+else
+{
+    <div style="max-width: 52rem; display: flex; flex-direction: column; gap: 1.5rem;">
+
+        @* ────── Tab Bar ────── *@
+        <div class="term-tab-bar">
+            <button type="button" class="term-tab-btn @(_activeTab == 0 ? "active" : "")" @onclick="@(() => _activeTab = 0)">Agent Mode</button>
+            <button type="button" class="term-tab-btn @(_activeTab == 1 ? "active" : "")" @onclick="@(() => _activeTab = 1)">Agent Tools</button>
+            <button type="button" class="term-tab-btn @(_activeTab == 2 ? "active" : "")" @onclick="@(() => _activeTab = 2)">Agent Profiles</button>
+            <button type="button" class="term-tab-btn @(_activeTab == 3 ? "active" : "")" @onclick="@(() => _activeTab = 3)">Source Control</button>
+        </div>
+
+        @* ────── Tab 1: Agent Mode ────── *@
+        @if (_activeTab == 0)
+        {
+            <div class="term-card">
+                <h5 class="term-heading">LLM Provider</h5>
+
+                <div class="term-radio-group mb-3">
+                    <div class="form-check term-radio">
+                        <input class="form-check-input" type="radio" name="llmProvider" id="provOllama"
+                               checked="@(_currentConfig.LlmProvider == LlmProviderKind.LocalOllama)"
+                               @onchange="@(() => _currentConfig.LlmProvider = LlmProviderKind.LocalOllama)" />
+                        <label class="form-check-label" for="provOllama">Local Ollama</label>
+                    </div>
+                    <div class="form-check term-radio">
+                        <input class="form-check-input" type="radio" name="llmProvider" id="provFoundry"
+                               checked="@(_currentConfig.LlmProvider == LlmProviderKind.LocalFoundryLocal)"
+                               @onchange="@(() => _currentConfig.LlmProvider = LlmProviderKind.LocalFoundryLocal)" />
+                        <label class="form-check-label" for="provFoundry">Local FoundryLocal</label>
+                    </div>
+                    <div class="form-check term-radio">
+                        <input class="form-check-input" type="radio" name="llmProvider" id="provAzure"
+                               checked="@(_currentConfig.LlmProvider == LlmProviderKind.FoundryOpenAI)"
+                               @onchange="@(() => _currentConfig.LlmProvider = LlmProviderKind.FoundryOpenAI)" />
+                        <label class="form-check-label" for="provAzure">Azure AI Inference (FoundryOpenAI)</label>
+                    </div>
+                    <div class="form-check term-radio">
+                        <input class="form-check-input" type="radio" name="llmProvider" id="provCopilot"
+                               checked="@(_currentConfig.LlmProvider == LlmProviderKind.GitHubCopilot)"
+                               @onchange="@(() => _currentConfig.LlmProvider = LlmProviderKind.GitHubCopilot)" />
+                        <label class="form-check-label" for="provCopilot">GitHub Copilot</label>
+                    </div>
+                </div>
+            </div>
+
+            @* ── Conditional provider panels ── *@
+            @if (_currentConfig.LlmProvider == LlmProviderKind.LocalOllama)
+            {
+                <div class="term-card">
+                    <h5 class="term-heading">Ollama Settings</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label term-label" for="cfgOllamaEndpoint">Endpoint URL</label>
+                        <input type="text" id="cfgOllamaEndpoint" class="form-control term-input"
+                               @bind="_currentConfig.Ollama.Endpoint" />
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label term-label" for="cfgOllamaModel">Model Name</label>
+                        <select id="cfgOllamaModel" class="form-select term-select"
+                                @bind="_currentConfig.Ollama.Model" style="min-width: 16rem;">
+                            @foreach (var modelOpt in _modelChoices)
+                            {
+                                <option value="@modelOpt">@modelOpt</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="term-btn-outline" disabled="@_testRunning" @onclick="TestConnection">
+                            @if (_testRunning)
+                            {
+                                <span>Testing&#8230;</span>
+                            }
+                            else
+                            {
+                                <span>&#x1F50C; Test Connection</span>
+                            }
+                        </button>
+                        <button type="button" class="term-btn-outline" @onclick="@(() => _showHelp = !_showHelp)">
+                            &#x2753; Help
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_testResult))
+                    {
+                        <div class="term-test-result @(_testSuccess ? "term-test-ok" : "term-test-fail")">
+                            @_testResult
+                        </div>
+                    }
+
+                    @if (_showHelp)
+                    {
+                        <div class="term-help-box mt-3">
+                            <strong>Sample values for Ollama:</strong>
+                            <table style="margin-top: 0.5rem; width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">ENDPOINT</td>
+                                    <td style="padding: 0.25rem 0;"><code>http://localhost:11434</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">MODEL</td>
+                                    <td style="padding: 0.25rem 0;"><code>ministral-3</code> &nbsp;|&nbsp; <code>devstral-small:24b</code> &nbsp;|&nbsp; <code>qwen3:32b</code></td>
+                                </tr>
+                            </table>
+                            <hr style="border-color: #33ff77; opacity: 0.3; margin: 0.6rem 0;" />
+                            <span style="font-size: 0.78rem; color: #6e7681;">
+                                &#x2139; Ensure Ollama is running locally. Pull a model with <code>ollama pull ministral-3</code>.
+                            </span>
+                        </div>
+                    }
+                </div>
+
+                @* ── Model Recommendations (Ollama only) ── *@
+                <div class="term-card">
+                    <h5 class="term-heading">Model Recommendations</h5>
+                    @foreach (var rec in _suggestedModels)
+                    {
+                        <div class="term-rec-card">
+                            <strong>@rec.Name</strong> &mdash;
+                            @rec.Description &mdash; min @(rec.MinVramGb) GB VRAM &mdash;
+                            <code>@rec.OllamaPullCommand</code>
+                        </div>
+                    }
+                </div>
+            }
+            else if (_currentConfig.LlmProvider == LlmProviderKind.LocalFoundryLocal)
+            {
+                <div class="term-card">
+                    <h5 class="term-heading">FoundryLocal Settings</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label term-label" for="cfgFoundryAlias">Model Alias</label>
+                        <input type="text" id="cfgFoundryAlias" class="form-control term-input"
+                               @bind="_currentConfig.FoundryLocal.ModelAlias" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label term-label" for="cfgFoundryEndpoint">Endpoint</label>
+                        <input type="text" id="cfgFoundryEndpoint" class="form-control term-input"
+                               @bind="_currentConfig.FoundryLocal.Endpoint" />
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="term-btn-outline" disabled="@_testRunning" @onclick="TestConnection">
+                            @if (_testRunning)
+                            {
+                                <span>Testing&#8230;</span>
+                            }
+                            else
+                            {
+                                <span>&#x1F50C; Test Connection</span>
+                            }
+                        </button>
+                        <button type="button" class="term-btn-outline" @onclick="@(() => _showHelp = !_showHelp)">
+                            &#x2753; Help
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_testResult))
+                    {
+                        <div class="term-test-result @(_testSuccess ? "term-test-ok" : "term-test-fail")">
+                            @_testResult
+                        </div>
+                    }
+
+                    @if (_showHelp)
+                    {
+                        <div class="term-help-box mt-3">
+                            <strong>FoundryLocal setup:</strong>
+                            <table style="margin-top: 0.5rem; width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">INSTALL</td>
+                                    <td style="padding: 0.25rem 0;"><code>dotnet tool install -g FoundryLocal</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">PULL</td>
+                                    <td style="padding: 0.25rem 0;"><code>foundry model pull phi-3.5-mini</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">RUN</td>
+                                    <td style="padding: 0.25rem 0;"><code>foundry model run phi-3.5-mini</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">ENDPOINT</td>
+                                    <td style="padding: 0.25rem 0;"><code>http://localhost:5272/v1</code></td>
+                                </tr>
+                            </table>
+                            <hr style="border-color: #33ff77; opacity: 0.3; margin: 0.6rem 0;" />
+                            <span style="font-size: 0.78rem; color: #6e7681;">
+                                &#x2139; Ensure FoundryLocal is running locally before testing.
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+            else if (_currentConfig.LlmProvider == LlmProviderKind.FoundryOpenAI)
+            {
+                <div class="term-card">
+                    <h5 class="term-heading">Azure AI Inference Settings</h5>
+
+                    <div class="azure-settings-grid">
+                        <label class="term-label" for="cfgAzureEndpoint">ENDPOINT</label>
+                        <input type="text" id="cfgAzureEndpoint" class="form-control term-input"
+                               placeholder="https://your-resource.services.ai.azure.com/models"
+                               @bind="_currentConfig.AzureAIInference.Endpoint" />
+
+                        <label class="term-label" for="cfgAzureModel">MODEL</label>
+                        <input type="text" id="cfgAzureModel" class="form-control term-input"
+                               placeholder="gpt-4o-mini"
+                               @bind="_currentConfig.AzureAIInference.Model" />
+
+                        <label class="term-label" for="cfgAzureKey">API KEY</label>
+                        <input type="password" id="cfgAzureKey" class="form-control term-input"
+                               @bind="_currentConfig.AzureAIInference.ApiKey" />
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="term-btn-outline" disabled="@_testRunning" @onclick="TestConnection">
+                            @if (_testRunning)
+                            {
+                                <span>Testing&#8230;</span>
+                            }
+                            else
+                            {
+                                <span>&#x1F50C; Test Connection</span>
+                            }
+                        </button>
+                        <button type="button" class="term-btn-outline" @onclick="@(() => _showHelp = !_showHelp)">
+                            &#x2753; Help
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_testResult))
+                    {
+                        <div class="term-test-result @(_testSuccess ? "term-test-ok" : "term-test-fail")">
+                            @_testResult
+                        </div>
+                    }
+
+                    @if (_showHelp)
+                    {
+                        <div class="term-help-box mt-3">
+                            <strong>Sample values for Azure AI Inference:</strong>
+                            <table style="margin-top: 0.5rem; width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">ENDPOINT</td>
+                                    <td style="padding: 0.25rem 0;"><code>https://&lt;your-resource&gt;.services.ai.azure.com/models</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">MODEL</td>
+                                    <td style="padding: 0.25rem 0;"><code>gpt-4o-mini</code> &nbsp;|&nbsp; <code>gpt-4o</code> &nbsp;|&nbsp; <code>gpt-4.1</code> &nbsp;|&nbsp; <code>gpt-5-mini</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">API KEY</td>
+                                    <td style="padding: 0.25rem 0;"><code>&lt;your-api-key-from-azure-portal&gt;</code></td>
+                                </tr>
+                            </table>
+                            <hr style="border-color: #33ff77; opacity: 0.3; margin: 0.6rem 0;" />
+                            <span style="font-size: 0.78rem; color: #6e7681;">
+                                &#x2139; Find these values in the <strong>Azure Portal</strong> &rarr; your AI Services resource &rarr;
+                                <strong>Keys and Endpoint</strong>. The endpoint usually ends with <code>/models</code>.
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+            else if (_currentConfig.LlmProvider == LlmProviderKind.GitHubCopilot)
+            {
+                <div class="term-card">
+                    <h5 class="term-heading">GitHub Copilot Settings</h5>
+
+                    <div class="mb-3" style="background-color: #1c2733; border: 1px solid #33ff77; border-radius: 0.4rem; padding: 0.75rem 1rem; font-size: 0.85rem; color: #c9d1d9;">
+                        &#x2139; The Copilot CLI must be installed and authenticated (<code style="color: #58a6ff;">copilot auth login</code>).
+                        A GitHub Copilot subscription is required.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label term-label" for="cfgCopilotModel">Model</label>
+                        <input type="text" id="cfgCopilotModel" class="form-control term-input"
+                               placeholder="gpt-4.1"
+                               @bind="_currentConfig.Copilot.Model" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label term-label" for="cfgCopilotToken">GitHub Token (optional)</label>
+                        <input type="password" id="cfgCopilotToken" class="form-control term-input"
+                               @bind="_currentConfig.Copilot.GitHubToken" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label term-label" for="cfgCopilotCli">CLI Path (optional)</label>
+                        <input type="text" id="cfgCopilotCli" class="form-control term-input"
+                               placeholder="copilot"
+                               @bind="_currentConfig.Copilot.CliPath" />
+                        <span class="term-muted">Leave blank if <code style="color: #58a6ff;">copilot</code> is on your PATH.</span>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="term-btn-outline" disabled="@_testRunning" @onclick="TestConnection">
+                            @if (_testRunning)
+                            {
+                                <span>Testing&#8230;</span>
+                            }
+                            else
+                            {
+                                <span>&#x1F50C; Test Connection</span>
+                            }
+                        </button>
+                        <button type="button" class="term-btn-outline" @onclick="@(() => _showHelp = !_showHelp)">
+                            &#x2753; Help
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(_testResult))
+                    {
+                        <div class="term-test-result @(_testSuccess ? "term-test-ok" : "term-test-fail")">
+                            @_testResult
+                        </div>
+                    }
+
+                    @if (_showHelp)
+                    {
+                        <div class="term-help-box mt-3">
+                            <strong>GitHub Copilot setup:</strong>
+                            <table style="margin-top: 0.5rem; width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">AUTH</td>
+                                    <td style="padding: 0.25rem 0;"><code>copilot auth login</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">VERIFY</td>
+                                    <td style="padding: 0.25rem 0;"><code>copilot auth status</code></td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">MODELS</td>
+                                    <td style="padding: 0.25rem 0;"><code>gpt-4.1</code> &nbsp;|&nbsp; <code>claude-sonnet-4.5</code></td>
+                                </tr>
+                            </table>
+                            <hr style="border-color: #33ff77; opacity: 0.3; margin: 0.6rem 0;" />
+                            <span style="font-size: 0.78rem; color: #6e7681;">
+                                &#x2139; A GitHub Copilot subscription is required. The Copilot CLI must be installed and authenticated.
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        @* ────── Tab 2: Agent Tools ────── *@
+        @if (_activeTab == 1)
+        {
+            <div class="term-card">
+                <h5 class="term-heading">Agent Tools</h5>
+
+                <h6 class="term-label" style="font-size: 0.95rem; margin-bottom: 0.5rem;">Microsoft Learn MCP Tools</h6>
+                @foreach (var toolKey in _mcpToolKeys)
+                {
+                    <div class="form-check form-switch term-switch mb-2">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="@($"mcpTool_{toolKey}")"
+                               checked="@GetToolEnabled(toolKey)"
+                               @onchange="@(e => OnToolToggled(toolKey, (bool)(e.Value ?? false)))" />
+                        <label class="form-check-label" for="@($"mcpTool_{toolKey}")">@toolKey</label>
+                    </div>
+                }
+
+                <hr class="term-divider" />
+
+                <h6 class="term-label" style="font-size: 0.95rem; margin-bottom: 0.5rem;">Future Tools (coming soon)</h6>
+                @foreach (var toolKey in _futureToolKeys)
+                {
+                    <div class="form-check form-switch term-switch mb-2">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="@($"futureTool_{toolKey}")"
+                               checked="@GetToolEnabled(toolKey)"
+                               @onchange="@(e => OnToolToggled(toolKey, (bool)(e.Value ?? false)))" />
+                        <label class="form-check-label" for="@($"futureTool_{toolKey}")">@toolKey</label>
+                    </div>
+                }
+            </div>
+        }
+
+        @* ────── Tab 3: Agent Profiles ────── *@
+        @if (_activeTab == 2)
+        {
+            <div class="term-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="term-heading mb-0">Agent Profiles</h5>
+                    <button type="button"
+                            class="btn term-btn-save btn-sm"
+                            style="font-size: 0.78rem; padding: 0.35rem 0.9rem;"
+                            @onclick="SetDefaultModelToAll"
+                            title="Set all agent models to the current provider's default model">
+                        Set Default Model to All
+                    </button>
+                </div>
+
+                <div class="mb-3" style="background-color: #1c2733; border: 1px solid #33ff77; border-radius: 0.4rem; padding: 0.6rem 1rem; font-size: 0.82rem; color: #c9d1d9;">
+                    &#x2139; Default model for current provider (<strong style="color: #33ff77;">@_currentConfig.LlmProvider</strong>):
+                    <code style="color: #58a6ff;">@GetDefaultModel()</code>
+                </div>
+
+                <div class="accordion term-accordion" id="agentProfileAccordion">
+                    @{ var profileIdx = 0; }
+                    @foreach (var profile in _currentConfig.AgentProfiles)
+                    {
+                        var panelId = $"agentPanel_{profileIdx}";
+                        var headerId = $"agentHeader_{profileIdx}";
+                        var collapseClass = profileIdx == 0 ? "accordion-collapse collapse show" : "accordion-collapse collapse";
+                        var btnClass = profileIdx == 0 ? "accordion-button" : "accordion-button collapsed";
+                        var currentProfile = profile;
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="@headerId">
+                                <button class="@btnClass"
+                                        type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#@panelId"
+                                        aria-expanded="@(profileIdx == 0 ? "true" : "false")"
+                                        aria-controls="@panelId">
+                                    @profile.AgentKey
+                                </button>
+                            </h2>
+                            <div id="@panelId" class="@collapseClass" aria-labelledby="@headerId" data-bs-parent="#agentProfileAccordion">
+                                <div class="accordion-body">
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between align-items-end mb-1">
+                                            <label class="form-label term-label mb-0" for="@($"modelOverride_{profileIdx}")">Model Override</label>
+                                            <button type="button"
+                                                    class="btn btn-outline-success btn-sm"
+                                                    style="font-size: 0.72rem; padding: 0.2rem 0.6rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
+                                                    @onclick="@(() => SetDefaultModelForAgent(currentProfile))"
+                                                    title="Reset model to the current provider's default">
+                                                Set to Default
+                                            </button>
+                                        </div>
+                                        <input type="text"
+                                               id="@($"modelOverride_{profileIdx}")"
+                                               class="form-control term-input"
+                                               @bind="profile.ModelId" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label term-label">
+                                            Creativity: @profile.Creativity.ToString("F1")
+                                        </label>
+                                        <input type="range"
+                                               class="form-range term-range"
+                                               min="0" max="1" step="0.1"
+                                               value="@profile.Creativity"
+                                               @onchange="@(e => SetCreativity(profile, Convert.ToDouble(e.Value)))" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label term-label" for="@($"instrArea_{profileIdx}")">Custom Instructions</label>
+                                        <textarea id="@($"instrArea_{profileIdx}")"
+                                                  class="form-control term-textarea"
+                                                  rows="3"
+                                                  @bind="profile.Instruction"></textarea>
+                                    </div>
+
+                                    <div class="mb-1">
+                                        <div class="d-flex justify-content-between align-items-end mb-1">
+                                            <label class="form-label term-label mb-0" for="@($"sysPromptArea_{profileIdx}")">System Prompt</label>
+                                            <button type="button"
+                                                    class="btn btn-outline-success btn-sm"
+                                                    style="font-size: 0.72rem; padding: 0.2rem 0.6rem; color: #33ff77; border-color: #33ff77; font-family: 'Cascadia Code', monospace;"
+                                                    @onclick="@(() => ResetSystemPromptToDefault(currentProfile))"
+                                                    title="Reset the system prompt to the built-in default">
+                                                Reset to Default
+                                            </button>
+                                        </div>
+                                        <textarea id="@($"sysPromptArea_{profileIdx}")"
+                                                  class="form-control term-textarea"
+                                                  rows="8"
+                                                  @bind="profile.SystemPrompt"
+                                                  placeholder="@GetDefaultSystemPrompt(profile.AgentKey)"></textarea>
+                                        <span class="term-muted" style="opacity: 0.6; font-size: 0.78rem;">
+                                            Leave empty to use the built-in default prompt.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        profileIdx++;
+                    }
+                </div>
+
+                @if (_currentConfig.AgentProfiles.Count == 0)
+                {
+                    <span class="term-muted" style="opacity: 0.6;">No agent profiles configured yet.</span>
+                }
+            </div>
+        }
+
+        @* ────── Tab 4: Source Control ────── *@
+        @if (_activeTab == 3)
+        {
+            <div class="term-card">
+                <h5 class="term-heading">Source Control</h5>
+
+                <div class="mb-3">
+                    <label class="form-label term-label" for="cfgGhToken">GitHub Token</label>
+                    <input type="password"
+                           id="cfgGhToken"
+                           class="form-control term-input"
+                           @bind="_gitHubToken" />
+                </div>
+
+                <div>
+                    <label class="form-label term-label" for="cfgGhOwner">Owner / Organization</label>
+                    <input type="text"
+                           id="cfgGhOwner"
+                           class="form-control term-input"
+                           @bind="_gitHubOwner" />
+                </div>
+            </div>
+        }
+
+        @* ────── Save Button ────── *@
+        <div class="d-flex align-items-center gap-3">
+            <button type="button"
+                    class="btn term-btn-save"
+                    @onclick="PersistAllSettings">
+                Save All Settings
+            </button>
+
+            @if (!string.IsNullOrEmpty(_saveOutcome))
+            {
+                <span style="font-family: monospace; color: @(_saveSucceeded ? "#33ff77" : "#ff6b6b");">
+                    @_saveOutcome
+                </span>
+            }
+        </div>
+
+    </div>
+}
+</div>
+
+@code {
+    private ConfigurationDto? _currentConfig;
+    private List<ModelSuggestion> _suggestedModels = [];
+    private List<string> _modelChoices = [];
+    private bool _loadFailed;
+    private int _activeTab;
+
+    private string? _gitHubToken;
+    private string? _gitHubOwner;
+
+    private string _saveOutcome = string.Empty;
+    private bool _saveSucceeded;
+
+    // Generic test connection state
+    private bool _testRunning;
+    private bool _testSuccess;
+    private string _testResult = string.Empty;
+    private bool _showHelp;
+
+    // Tool key groupings
+    private static readonly string[] _mcpToolKeys =
+        ["get_dotnet_docs", "microsoft_docs_fetch", "microsoft_code_sample_search"];
+
+    private static readonly string[] _futureToolKeys =
+        ["web_search", "file_read", "code_compile_check", "nuget_search", "run_unit_tests"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _currentConfig = await _settingsClient.FetchCurrentAsync();
+            _suggestedModels = await _settingsClient.GetModelRecommendationsAsync();
+
+            _gitHubToken = _currentConfig.GitHubToken;
+            _gitHubOwner = _currentConfig.GitHubOwner;
+
+            // Build model dropdown choices from suggestions plus the currently selected value
+            _modelChoices = _suggestedModels
+                .Select(s => s.Name)
+                .ToList();
+
+            if (!string.IsNullOrEmpty(_currentConfig.Ollama?.Model)
+                && !_modelChoices.Contains(_currentConfig.Ollama.Model))
+            {
+                _modelChoices.Insert(0, _currentConfig.Ollama.Model);
+            }
+
+            // Ensure default agent profiles exist when the backend returns none
+            if (_currentConfig.AgentProfiles.Count == 0)
+            {
+                var agentKeys = new[] { "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation" };
+                var defaultModel = _currentConfig.LlmProvider switch
+                {
+                    LlmProviderKind.LocalOllama => _currentConfig.Ollama?.Model ?? "ministral-3",
+                    LlmProviderKind.LocalFoundryLocal => _currentConfig.FoundryLocal?.ModelAlias ?? "phi-3.5-mini",
+                    LlmProviderKind.FoundryOpenAI => _currentConfig.AzureAIInference?.Model ?? "",
+                    LlmProviderKind.GitHubCopilot => _currentConfig.Copilot?.Model ?? "gpt-4.1",
+                    _ => "ministral-3"
+                };
+                foreach (var key in agentKeys)
+                {
+                    _currentConfig.AgentProfiles.Add(new AgentProfile { AgentKey = key, ModelId = defaultModel });
+                }
+            }
+        }
+        catch
+        {
+            _loadFailed = true;
+        }
+    }
+
+    private bool GetToolEnabled(string toolKey)
+    {
+        if (_currentConfig is null) return false;
+        return _currentConfig.EnabledTools.TryGetValue(toolKey, out var on) && on;
+    }
+
+    private async Task OnToolToggled(string toolKey, bool enabled)
+    {
+        if (_currentConfig is null) return;
+        _currentConfig.EnabledTools[toolKey] = enabled;
+
+        try
+        {
+            await _settingsClient.ApplyToolToggleAsync(
+                new Dictionary<string, bool> { [toolKey] = enabled });
+        }
+        catch
+        {
+            // Revert on failure
+            _currentConfig.EnabledTools[toolKey] = !enabled;
+        }
+    }
+
+    private static void SetCreativity(AgentProfile target, double incoming)
+    {
+        target.Creativity = incoming;
+    }
+
+    /// <summary>Returns the default model name for the currently-selected LLM provider.</summary>
+    private string GetDefaultModel()
+    {
+        if (_currentConfig is null) return "";
+        return _currentConfig.LlmProvider switch
+        {
+            LlmProviderKind.LocalOllama => _currentConfig.Ollama?.Model ?? "ministral-3",
+            LlmProviderKind.LocalFoundryLocal => _currentConfig.FoundryLocal?.ModelAlias ?? "phi-3.5-mini",
+            LlmProviderKind.FoundryOpenAI => _currentConfig.AzureAIInference?.Model ?? "",
+            LlmProviderKind.GitHubCopilot => _currentConfig.Copilot?.Model ?? "gpt-4.1",
+            _ => "ministral-3"
+        };
+    }
+
+    /// <summary>Sets a single agent's model to the current provider default.</summary>
+    private void SetDefaultModelForAgent(AgentProfile profile)
+    {
+        profile.ModelId = GetDefaultModel();
+    }
+
+    /// <summary>Sets all agent models to the current provider default.</summary>
+    private void SetDefaultModelToAll()
+    {
+        if (_currentConfig is null) return;
+        var defaultModel = GetDefaultModel();
+        foreach (var profile in _currentConfig.AgentProfiles)
+        {
+            profile.ModelId = defaultModel;
+        }
+    }
+
+    /// <summary>Returns the built-in default system prompt for the given agent key.</summary>
+    private string GetDefaultSystemPrompt(string agentKey)
+    {
+        if (_currentConfig?.AgentDefaults is null) return "";
+        return _currentConfig.AgentDefaults.TryGetValue(agentKey, out var info)
+            ? info.DefaultSystemPrompt
+            : "";
+    }
+
+    /// <summary>Resets an agent's system prompt to the built-in default (empty = use default).</summary>
+    private void ResetSystemPromptToDefault(AgentProfile profile)
+    {
+        profile.SystemPrompt = GetDefaultSystemPrompt(profile.AgentKey);
+    }
+
+    private async Task TestConnection()
+    {
+        if (_currentConfig is null) return;
+
+        _testRunning = true;
+        _testResult = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var request = new TestConnectionRequest
+            {
+                Provider = _currentConfig.LlmProvider,
+                Ollama = _currentConfig.Ollama,
+                FoundryLocal = _currentConfig.FoundryLocal,
+                AzureAIInference = _currentConfig.AzureAIInference,
+                Copilot = _currentConfig.Copilot
+            };
+
+            var result = await _generationClient.TestConnectionAsync(request);
+            _testSuccess = result.Success;
+            _testResult = result.Message;
+        }
+        catch (Exception ex)
+        {
+            _testSuccess = false;
+            _testResult = $"Request failed: {ex.Message}";
+        }
+        finally
+        {
+            _testRunning = false;
+        }
+    }
+
+    private async Task PersistAllSettings()
+    {
+        if (_currentConfig is null) return;
+
+        _currentConfig.GitHubToken = _gitHubToken;
+        _currentConfig.GitHubOwner = _gitHubOwner;
+
+        // Sync flat fields for backward compatibility
+        _currentConfig.LlmEndpoint = _currentConfig.Ollama?.Endpoint ?? "http://localhost:11434";
+        _currentConfig.PreferredModel = _currentConfig.Ollama?.Model ?? "ministral-3";
+
+        try
+        {
+            await _settingsClient.ReplaceAsync(_currentConfig);
+            _saveSucceeded = true;
+            _saveOutcome = "Settings saved successfully.";
+        }
+        catch (Exception exc)
+        {
+            _saveSucceeded = false;
+            _saveOutcome = $"Save failed: {exc.Message}";
+        }
+    }
+}

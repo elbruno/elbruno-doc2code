@@ -1,0 +1,25 @@
+<Solution>
+  <Folder Name="/0 Aspire/">
+    <Project Path="src/elbruno.Doc2Code.AppHost/elbruno.Doc2Code.AppHost.csproj" />
+    <Project Path="src/elbruno.Doc2Code.ServiceDefaults/elbruno.Doc2Code.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/1 WebApp/">
+    <Project Path="src/elbruno.Doc2Code.Web/elbruno.Doc2Code.Web.csproj" />
+  </Folder>
+  <Folder Name="/2 Services/">
+    <Project Path="src/elbruno.Doc2Code.ApiService/elbruno.Doc2Code.ApiService.csproj" />
+    <Project Path="src/elbruno.Doc2Code.SettingsService/elbruno.Doc2Code.SettingsService.csproj" />
+  </Folder>
+  <Folder Name="/4 Shared/">
+    <Project Path="src/elbruno.Doc2Code.Agents/elbruno.Doc2Code.Agents.csproj" />
+    <Project Path="src/elbruno.Doc2Code.Core/elbruno.Doc2Code.Core.csproj" />
+    <Project Path="src/elbruno.Doc2Code.DocumentProcessing/elbruno.Doc2Code.DocumentProcessing.csproj" />
+    <Project Path="src/elbruno.Doc2Code.LlmProviders/elbruno.Doc2Code.LlmProviders.csproj" />
+    <Project Path="src/elbruno.Doc2Code.Tools/elbruno.Doc2Code.Tools.csproj" />
+  </Folder>
+  <Folder Name="/5 Tests/">
+    <Project Path="tests/elbruno.Doc2Code.Agents.Tests/elbruno.Doc2Code.Agents.Tests.csproj" />
+    <Project Path="tests/elbruno.Doc2Code.Core.Tests/elbruno.Doc2Code.Core.Tests.csproj" />
+    <Project Path="tests/elbruno.Doc2Code.DocumentProcessing.Tests/elbruno.Doc2Code.DocumentProcessing.Tests.csproj" />
+  </Folder>
+</Solution>

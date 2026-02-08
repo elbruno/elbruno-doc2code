@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Octokit" Version="14.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\elbruno.Doc2Code.ServiceDefaults\elbruno.Doc2Code.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\elbruno.Doc2Code.Core\elbruno.Doc2Code.Core.csproj" />
+    <ProjectReference Include="..\elbruno.Doc2Code.Agents\elbruno.Doc2Code.Agents.csproj" />
+    <ProjectReference Include="..\elbruno.Doc2Code.DocumentProcessing\elbruno.Doc2Code.DocumentProcessing.csproj" />
+    <ProjectReference Include="..\elbruno.Doc2Code.LlmProviders\elbruno.Doc2Code.LlmProviders.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+# Libro de Recetas
+
+## Descripción
+Una aplicación de consola sencilla para gestionar un libro de recetas personal.
+El usuario puede agregar, listar, buscar y eliminar recetas.
+
+## Actores
+- **Usuario**: gestiona sus recetas
+
+## Entidades del Dominio
+
+### Receta
+- Nombre (texto, obligatorio)
+- Categoría: Entrada, Principal, Postre, Bebida
+- Tiempo de preparación en minutos (entero, obligatorio)
+- Ingredientes (lista de texto)
+- Instrucciones (texto, obligatorio)
+
+## Reglas de Negocio
+- RN01: El nombre de la receta es obligatorio y no puede estar vacío
+- RN02: El tiempo de preparación debe ser mayor a cero
+- RN03: La receta debe tener al menos un ingrediente
+- RN04: No pueden existir dos recetas con el mismo nombre
+
+## Máquinas de Estado
+Ninguna — las recetas simplemente se crean y se eliminan.

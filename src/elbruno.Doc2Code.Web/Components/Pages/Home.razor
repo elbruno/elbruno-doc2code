@@ -1,0 +1,163 @@
+@page "/"
+@using elbruno.Doc2Code.Core.Models
+
+<PageTitle>Generate .NET Solution</PageTitle>
+
+<div class="d2c-wrap">
+
+    @* ── Header with side-by-side navigation ── *@
+    <div style="margin-bottom: 1.2rem;">
+        <h2 style="color: var(--d2c-fg); font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; margin-bottom: 0.6rem;">
+            elbruno.Doc2Code
+        </h2>
+        <div style="display: flex; gap: 0.8rem;">
+            <span class="d2c-nav-btn d2c-nav-btn-active">&#x25B6; Generate</span>
+            <a href="/settings" class="d2c-nav-btn" style="text-decoration: none;">&#x2699; Settings</a>
+        </div>
+    </div>
+
+    @* ── A. Upload Section ── *@
+    <div class="d2c-upload-zone">
+        <div style="margin-bottom: 0.7rem; letter-spacing: 0.12em; font-size: 0.9rem;">
+            DROP REQUIREMENTS DOCUMENT HERE
+        </div>
+        <InputFile accept=".txt,.md,.docx,.pdf"
+                   OnChange="@OnDocumentChosen"
+                   style="max-width: 26rem; color: var(--d2c-fg);" />
+    </div>
+
+    @if (_chosenDoc is not null)
+    {
+        <div class="d2c-file-label">
+            &#x25B8; <strong>@_chosenDoc.Name</strong> &mdash; @((_chosenDoc.Size / 1024.0).ToString("F1")) KB
+        </div>
+    }
+
+    <div style="margin: 1rem 0;">
+        <button class="btn btn-outline-success btn-lg d2c-launch-btn"
+                disabled="@(_chosenDoc is null || _pipelineActive)"
+                @onclick="LaunchGeneration">
+            @if (_pipelineActive)
+            {
+                <span>GENERATING\u2026</span>
+            }
+            else
+            {
+                <span>&#x25B6; LAUNCH PIPELINE</span>
+            }
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_statusLine))
+    {
+        <div style="font-size: 0.82rem; margin-bottom: 0.6rem; color: var(--d2c-dim);">
+            @_statusLine
+        </div>
+    }
+
+    @* ── B. Pipeline Viewer ── *@
+    <details open>
+        <summary class="d2c-details-toggle">PIPELINE STATUS</summary>
+
+        <div class="d2c-pipeline-row">
+            @{
+                var agentKeys = new[] { "Analyst", "Architect", "Developer", "Reviewer", "Testing", "Documentation" };
+            }
+            @for (var idx = 0; idx < agentKeys.Length; idx++)
+            {
+                var agentKey = agentKeys[idx];
+                @if (idx > 0)
+                {
+                    <span class="d2c-pipeline-connector @ConnectorCssState(idx - 1)">&rarr;</span>
+                }
+                <div class="d2c-pipeline-node @NodeCssState(agentKey)">
+                    @agentKey
+                    @if (string.Equals(_activeAgentName, agentKey, StringComparison.OrdinalIgnoreCase)
+                        && _pipelineActive
+                        && _currentStreamingText.ContainsKey(agentKey))
+                    {
+                        <div class="d2c-streaming-indicator">streaming<span class="d2c-blink">…</span></div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="d2c-stage-line">
+            @if (!string.IsNullOrEmpty(_currentStageName))
+            {
+                <span>@_currentStageName &mdash; @_progressPct%</span>
+            }
+            else
+            {
+                <span>Idle</span>
+            }
+        </div>
+
+        <div class="d2c-progress-track">
+            <div class="d2c-progress-fill" style="width: @(_progressPct)%;"></div>
+        </div>
+    </details>
+
+    @* ── C. Download Section ── *@
+    @if (_pipelineFinished)
+    {
+        <div class="d2c-done-card">
+            <div class="d2c-done-title">GENERATION COMPLETE</div>
+            <button class="d2c-download-btn" @onclick="DownloadArchive">
+                &#x2B07; DOWNLOAD ARCHIVE
+            </button>
+        </div>
+    }
+
+    @* ── D. Console Log ── *@
+    <div class="d2c-console-wrap">
+        <div class="d2c-console-header">
+            <span>CONSOLE OUTPUT</span>
+            <div class="d2c-console-actions">
+                <button class="d2c-console-clear-btn" @onclick="@(() => ExportLogs(true))">EXPORT ALL</button>
+                <button class="d2c-console-clear-btn" @onclick="@(() => ExportLogs(false))">EXPORT LOG</button>
+                <button class="d2c-console-clear-btn" @onclick="FlushConsole">CLEAR</button>
+            </div>
+        </div>
+        <div id="@ConsolePanelId" class="d2c-console-body">
+            @foreach (var logItem in _consoleLogs)
+            {
+                @if (logItem.Severity == LogSeverity.Prompt && !string.IsNullOrEmpty(logItem.ExpandableContent))
+                {
+                    <details class="d2c-prompt-details">
+                        <summary class="d2c-log-prompt">
+                            [@logItem.OccurredAt.ToString("HH:mm:ss")] [@logItem.SourceAgent] @logItem.Text
+                        </summary>
+                        <pre class="d2c-prompt-content">@logItem.ExpandableContent</pre>
+                    </details>
+                }
+                else
+                {
+                    var severityCss = logItem.Severity switch
+                    {
+                        LogSeverity.Informational => "d2c-log-info",
+                        LogSeverity.Caution       => "d2c-log-warn",
+                        LogSeverity.Failure       => "d2c-log-err",
+                        LogSeverity.Trace         => "d2c-log-trace",
+                        _                         => "d2c-log-info"
+                    };
+                    <div class="@severityCss">
+                        [@logItem.OccurredAt.ToString("HH:mm:ss")] [@logItem.SourceAgent] @logItem.Text
+                    </div>
+                }
+            }
+
+            @* ── Live Agent Output (streaming) ── *@
+            @if (_pipelineActive && !string.IsNullOrEmpty(_activeAgentName)
+                && _currentStreamingText.TryGetValue(_activeAgentName, out var streamText)
+                && !string.IsNullOrEmpty(streamText))
+            {
+                <div class="d2c-streaming-section">
+                    <div class="d2c-streaming-label">LIVE AGENT OUTPUT — @_activeAgentName<span class="d2c-blink">_</span></div>
+                    <pre class="d2c-streaming-content">@streamText</pre>
+                </div>
+            }
+        </div>
+    </div>
+
+</div>

@@ -1,0 +1,78 @@
+# Project Task Tracker
+
+## Overview
+A team productivity application that lets organizations create projects, assign tasks
+to members, track progress through defined workflow stages, and generate weekly
+status summaries. The system enforces capacity limits per person and validates
+that status transitions follow a strict lifecycle.
+
+## Actors
+- **Project Lead**: creates projects, defines milestones, assigns members, views dashboards
+- **Team Member**: picks up tasks, updates progress, logs time, adds comments
+- **Stakeholder**: views read-only dashboards and weekly roll-up reports
+
+## Domain Entities
+
+### Project
+- Title (text, required)
+- Code (text, unique, 3–8 uppercase characters)
+- Description (text)
+- Start date (date, required)
+- Target completion date (date)
+- Status: Planning, Active, On Hold, Completed, Archived
+
+### Task
+- Title (text, required)
+- Project (reference, required)
+- Assignee (reference, optional)
+- Priority: Critical, High, Medium, Low
+- Story points (integer, 1–13)
+- Status: Backlog, Ready, In Progress, In Review, Done, Cancelled
+- Due date (date, optional)
+- Tags (list of text)
+
+### TeamMember
+- Display name (text, required)
+- Email (text, unique)
+- Role: Developer, Designer, QA, DevOps
+- Max concurrent tasks (integer, default 5)
+- Active (boolean)
+
+### Comment
+- Task (reference, required)
+- Author (reference, required)
+- Body (text, required)
+- Posted at (datetime)
+
+## Business Rules
+
+- BR01: A team member cannot be assigned more tasks with status "In Progress" than their max-concurrent-tasks limit
+- BR02: Only tasks in "Ready" status may transition to "In Progress"
+- BR03: A task cannot move to "Done" unless it has at least one comment from someone other than the assignee (peer review gate)
+- BR04: Tasks with priority "Critical" must have a due date set before leaving "Backlog"
+- BR05: When all tasks in a project reach "Done" or "Cancelled", the project status automatically transitions to "Completed"
+- BR06: A project in "Archived" status does not accept new tasks
+- BR07: Story points for a single task cannot exceed 13 (anything larger should be split)
+
+## State Machines
+
+### Task Lifecycle
+- Backlog → Ready (when groomed and estimated)
+- Ready → In Progress (when a team member picks it up — enforces BR01)
+- In Progress → In Review (when the assignee marks it for review)
+- In Review → In Progress (when reviewer requests changes)
+- In Review → Done (when reviewer approves — enforces BR03)
+- Any active state → Cancelled (when the project lead cancels the task)
+
+### Project Lifecycle
+- Planning → Active (when the project lead kicks off)
+- Active → On Hold (when paused by stakeholder request)
+- On Hold → Active (when resumed)
+- Active → Completed (automatic per BR05, or manual by project lead)
+- Completed → Archived (after 30-day grace period)
+
+## Non-Functional Requirements
+- The system must support real-time updates via WebSocket or SignalR so dashboards refresh without polling
+- All date-times are stored and displayed in UTC
+- Audit trail for every task status change, including who made the change and a timestamp
+- Search across task titles and comments must return results within 1 second for up to 100 000 tasks

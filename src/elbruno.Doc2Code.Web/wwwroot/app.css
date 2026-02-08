@@ -1,0 +1,21 @@
+/* elbruno.Doc2Code — global app styles (Bootstrap 5 dark terminal aesthetic) */
+
+.blazor-error-boundary {
+    background-color: #1a0e0e;
+    color: #33ff77;
+    border: 1px solid #ff4444;
+    padding: 0.85rem 1.1rem;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+
+.blazor-error-boundary::after {
+    content: ">> RENDER FAULT DETECTED IN THIS SEGMENT.";
+}
+
+.validation-message {
+    color: #ff6b6b;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    font-size: 0.78rem;
+    margin-block-start: 0.25rem;
+    letter-spacing: 0.03em;
+}

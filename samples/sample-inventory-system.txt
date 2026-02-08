@@ -1,0 +1,96 @@
+# Sistema de Control de Inventario y Almacén
+
+## Descripción General
+Aplicación para gestionar productos, categorías, almacenes y movimientos de stock
+(entradas, salidas, transferencias entre almacenes). Incluye control de proveedores,
+órdenes de compra y alertas de stock mínimo. Diseñado para una empresa mediana con
+múltiples ubicaciones de almacenamiento.
+
+## Actores
+- **Almacenero**: registra entradas y salidas de productos, realiza conteos físicos
+- **Comprador**: crea y gestiona órdenes de compra a proveedores
+- **Gerente de Logística**: configura almacenes, define niveles mínimos, consulta reportes
+- **Sistema**: genera alertas automáticas cuando el stock cae por debajo del nivel mínimo
+
+## Entidades Principales
+
+### Producto
+- Código SKU (texto, único, obligatorio)
+- Nombre (texto, obligatorio)
+- Categoría (referencia, obligatorio)
+- Unidad de medida: Unidad, Kilogramo, Litro, Metro
+- Precio unitario (decimal)
+- Stock mínimo (entero, por almacén)
+- Activo (booleano)
+
+### Categoría
+- Nombre (texto, único, obligatorio)
+- Descripción (texto)
+- Categoría padre (referencia, opcional — permite subcategorías)
+
+### Almacén
+- Código (texto, único, obligatorio)
+- Nombre (texto, obligatorio)
+- Dirección (texto)
+- Capacidad máxima en unidades (entero)
+- Estado: Operativo, En mantenimiento, Cerrado
+
+### MovimientoStock
+- Producto (referencia, obligatorio)
+- Almacén origen (referencia, opcional — nulo para entradas)
+- Almacén destino (referencia, opcional — nulo para salidas)
+- Tipo: Entrada, Salida, Transferencia
+- Cantidad (entero, mayor que cero)
+- Fecha del movimiento (fecha-hora)
+- Motivo (texto)
+- Documento de referencia (texto, opcional — número de orden de compra, etc.)
+
+### Proveedor
+- Razón social (texto, obligatorio)
+- RFC / NIT (texto, único)
+- Contacto principal (texto)
+- Email (texto)
+- Teléfono (texto)
+- Estado: Activo, Suspendido, Inactivo
+
+### OrdenCompra
+- Número de orden (texto, único, generado automáticamente)
+- Proveedor (referencia, obligatorio)
+- Almacén destino (referencia, obligatorio)
+- Fecha de emisión (fecha)
+- Fecha de entrega esperada (fecha)
+- Estado: Borrador, Enviada, Parcialmente recibida, Recibida, Cancelada
+- Líneas de detalle: lista de (Producto, Cantidad solicitada, Cantidad recibida, Precio unitario)
+
+## Reglas de Negocio
+
+- RN01: No se permiten salidas de stock que dejen la cantidad disponible por debajo de cero
+- RN02: Las transferencias descuentan del almacén origen y suman al almacén destino en una sola transacción atómica
+- RN03: Cuando el stock de un producto en cualquier almacén cae por debajo del nivel mínimo, el sistema genera una alerta automática dirigida al Comprador
+- RN04: Las órdenes de compra solo pueden enviarse al proveedor si tienen al menos una línea de detalle
+- RN05: Al recibir mercancía contra una orden de compra, la cantidad recibida no puede superar la cantidad solicitada por línea
+- RN06: Los movimientos de stock deben usar FIFO (primero en entrar, primero en salir) para productos perecederos (categoría marcada como perecedera)
+- RN07: Un proveedor con estado Suspendido no puede recibir nuevas órdenes de compra
+- RN08: El almacén no puede recibir mercancía si su capacidad máxima sería excedida con el nuevo ingreso
+
+## Máquinas de Estado
+
+### Estado de la Orden de Compra
+- Borrador → Enviada (cuando el Comprador la envía al proveedor — valida RN04)
+- Enviada → Parcialmente recibida (cuando llega parte de la mercancía)
+- Parcialmente recibida → Parcialmente recibida (cuando llegan más entregas parciales)
+- Parcialmente recibida → Recibida (cuando se completan todas las líneas)
+- Enviada → Recibida (cuando llega toda la mercancía en una sola entrega)
+- Borrador → Cancelada (si se descarta antes de enviar)
+- Enviada → Cancelada (si el Gerente de Logística decide cancelar — requiere motivo)
+
+### Estado del Almacén
+- Operativo → En mantenimiento (cuando se programa mantenimiento — no acepta nuevos movimientos)
+- En mantenimiento → Operativo (cuando finaliza el mantenimiento)
+- Operativo → Cerrado (cuando se decide clausurar definitivamente — requiere stock en cero)
+
+## Requisitos No Funcionales
+- El sistema debe garantizar consistencia transaccional en todos los movimientos de stock (sin cantidades negativas ni descuadres)
+- Los reportes de stock deben poder generarse para cualquier fecha histórica (snapshot temporal)
+- Todas las operaciones deben registrar usuario, fecha-hora y dirección IP para auditoría
+- El sistema debe soportar importación masiva de productos vía archivo CSV (hasta 10 000 registros por lote)

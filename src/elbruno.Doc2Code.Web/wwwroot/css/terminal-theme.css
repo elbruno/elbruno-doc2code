@@ -1,0 +1,251 @@
+/* elbruno.Doc2Code — dark terminal / hacker aesthetic
+   Overrides Bootstrap 5.3 dark mode with a matrix-green palette */
+
+/* ── Bootstrap dark-mode variable overrides ── */
+:root,
+[data-bs-theme="dark"] {
+    --bs-body-bg: #090b0d;
+    --bs-body-color: #33ff77;
+    --bs-emphasis-color: #5bffa0;
+    --bs-secondary-bg: #0f1510;
+    --bs-tertiary-bg: #111a14;
+    --bs-border-color: #1a4d2e;
+    --bs-primary: #29e065;
+    --bs-primary-rgb: 41, 224, 101;
+    --bs-link-color: #33ff77;
+    --bs-link-hover-color: #77ffaa;
+    --bs-code-color: #5bffa0;
+    --d2c-glow-sm: 0 0 4px rgba(51, 255, 119, 0.35);
+    --d2c-glow-md: 0 0 9px rgba(51, 255, 119, 0.45);
+    --d2c-panel-bg: rgba(14, 26, 18, 0.82);
+    --d2c-panel-border: #1a4d2e;
+}
+
+/* ── Global typography ── */
+html {
+    font-size: 15px;
+}
+
+body {
+    font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Mono', monospace;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    min-height: 100vh;
+    position: relative;
+}
+
+/* scanline overlay */
+body::after {
+    content: "";
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, 0.12) 3px,
+        rgba(0, 0, 0, 0.12) 4px
+    );
+}
+
+/* ── Headings ── */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    color: #5bffa0;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    text-shadow: var(--d2c-glow-sm);
+    letter-spacing: 0.04em;
+}
+
+/* ── Links ── */
+a {
+    color: var(--bs-link-color);
+    text-decoration: none;
+    transition: color 0.18s, text-shadow 0.18s;
+}
+a:hover,
+a:focus-visible {
+    color: var(--bs-link-hover-color);
+    text-shadow: var(--d2c-glow-sm);
+}
+
+/* ── Buttons (terminal-styled) ── */
+.btn-terminal,
+.btn-outline-success {
+    background: transparent;
+    color: #33ff77;
+    border: 1.5px solid #33ff77;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 0.82rem;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    padding: 0.42rem 1.15rem;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+.btn-terminal:hover,
+.btn-terminal:focus-visible,
+.btn-outline-success:hover,
+.btn-outline-success:focus-visible {
+    background: rgba(51, 255, 119, 0.12);
+    color: #eafff0;
+    box-shadow: var(--d2c-glow-md);
+}
+.btn-terminal:active,
+.btn-outline-success:active {
+    background: rgba(51, 255, 119, 0.22);
+}
+
+.btn-primary {
+    background-color: #166b34;
+    border-color: #29e065;
+    color: #e0ffe8;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+.btn-primary:hover,
+.btn-primary:focus-visible {
+    background-color: #1b8a42;
+    border-color: #33ff77;
+    box-shadow: var(--d2c-glow-md);
+}
+
+/* ── Cards / Panels ── */
+.card,
+.d2c-panel {
+    background: var(--d2c-panel-bg);
+    border: 1px solid var(--d2c-panel-border);
+    border-radius: 0.35rem;
+    color: var(--bs-body-color);
+}
+.card-header {
+    background: rgba(14, 26, 18, 0.62);
+    border-bottom: 1px solid var(--d2c-panel-border);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+.card-body {
+    background: transparent;
+}
+
+/* ── Navbar ── */
+.navbar,
+.navbar-dark,
+.navbar.bg-dark {
+    background-color: #060a07 !important;
+    border-bottom: 1px solid #1a4d2e;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+}
+.navbar-brand {
+    color: #33ff77 !important;
+    text-shadow: var(--d2c-glow-sm);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+.nav-link {
+    color: #88ddaa !important;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.07em;
+    transition: color 0.15s, text-shadow 0.15s;
+}
+.nav-link:hover,
+.nav-link.active,
+.nav-link:focus-visible {
+    color: #33ff77 !important;
+    text-shadow: var(--d2c-glow-sm);
+}
+
+/* ── Form controls ── */
+.form-control,
+.form-select {
+    background-color: #0c120e;
+    border: 1px solid #1a4d2e;
+    color: #33ff77;
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    font-size: 0.88rem;
+}
+.form-control:focus,
+.form-select:focus {
+    border-color: #29e065;
+    box-shadow: 0 0 0 0.2rem rgba(41, 224, 101, 0.18);
+    background-color: #0e160f;
+    color: #5bffa0;
+}
+.form-control::placeholder {
+    color: #3a6b4a;
+    opacity: 1;
+}
+.form-label {
+    color: #88ddaa;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Tables ── */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: #33ff77;
+    --bs-table-border-color: #1a4d2e;
+}
+.table thead th {
+    color: #5bffa0;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    border-bottom-width: 2px;
+}
+
+/* ── Scrollbar ── */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #1a4d2e #090b0d;
+}
+*::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+*::-webkit-scrollbar-track {
+    background: #090b0d;
+}
+*::-webkit-scrollbar-thumb {
+    background: #1a4d2e;
+    border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: #29e065;
+}
+
+/* ── Code / Pre ── */
+pre, code, kbd {
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    color: #5bffa0;
+}
+pre {
+    background: #0a0f0c;
+    border: 1px solid #1a4d2e;
+    padding: 0.9rem;
+    border-radius: 0.3rem;
+}
+
+/* ── Badge overrides ── */
+.badge.bg-success {
+    background-color: #166b34 !important;
+    color: #e0ffe8;
+}
+.badge.bg-danger {
+    background-color: #6b1616 !important;
+    color: #ffe0e0;
+}
+
+/* ── Utility: terminal cursor blink ── */
+@keyframes d2c-cursor-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+.d2c-blink {
+    animation: d2c-cursor-blink 1s steps(1) infinite;
+}
