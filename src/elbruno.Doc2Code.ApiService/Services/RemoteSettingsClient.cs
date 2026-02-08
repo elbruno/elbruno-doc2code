@@ -36,7 +36,11 @@ public sealed class RemoteSettingsClient : ISettingsStore
             Ollama = dto.Ollama,
             FoundryLocal = dto.FoundryLocal,
             AzureAIInference = dto.AzureAIInference,
+#pragma warning disable CS0618
             AgentProfiles = dto.AgentProfiles,
+#pragma warning restore CS0618
+            AgentDefinitions = dto.AgentDefinitions,
+            Pipelines = dto.Pipelines,
             SourceControl = new SourceControlConfig
             {
                 Token = dto.GitHubToken,
@@ -58,7 +62,11 @@ public sealed class RemoteSettingsClient : ISettingsStore
             AzureAIInference = config.AzureAIInference,
             LlmEndpoint = config.LlmEndpoint,
             PreferredModel = config.PreferredModel,
+#pragma warning disable CS0618
             AgentProfiles = config.AgentProfiles,
+#pragma warning restore CS0618
+            AgentDefinitions = config.AgentDefinitions,
+            Pipelines = config.Pipelines,
             GitHubToken = config.SourceControl.Token,
             GitHubOwner = config.SourceControl.OwnerOrOrg,
             EnabledTools = config.EnabledTools

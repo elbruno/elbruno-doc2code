@@ -12,6 +12,21 @@ public sealed class PipelineStatus
     public DateTime? FinishedAtUtc { get; set; }
     public string? FailureReason { get; set; }
 
+    /// <summary>Zero-based index of the current step in the pipeline.</summary>
+    public int StepIndex { get; set; }
+
+    /// <summary>Total number of steps in the pipeline.</summary>
+    public int TotalSteps { get; set; }
+
+    /// <summary>Agent key of the step currently executing.</summary>
+    public string StepAgentKey { get; set; } = "";
+
+    /// <summary>Display names of agents running concurrently in the same level.</summary>
+    public List<string> ParallelPeers { get; set; } = [];
+
+    /// <summary>Custom stage name when <see cref="Stage"/> is <see cref="WorkflowStage.Custom"/>.</summary>
+    public string? CustomStageName { get; set; }
+
     // Attached outputs — populated as the pipeline progresses
     public GeneratedSolution? CodeOutput { get; set; }
     public TestSuite? TestOutput { get; set; }
@@ -30,5 +45,6 @@ public enum WorkflowStage
     GeneratingTests,
     GeneratingDocs,
     Done,
-    Faulted
+    Faulted,
+    Custom
 }

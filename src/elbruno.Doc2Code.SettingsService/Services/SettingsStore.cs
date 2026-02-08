@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using elbruno.Doc2Code.Core.Abstractions;
 using elbruno.Doc2Code.Core.Models;
+using elbruno.Doc2Code.Core.Pipeline;
 
 /// <summary>
 /// Persists <see cref="Doc2CodeConfig"/> to a local JSON file.
@@ -47,6 +48,9 @@ public sealed class SettingsStore : ISettingsStore
                 _cached = new Doc2CodeConfig();
                 await PersistAsync(_cached, ct);
             }
+
+            // Auto-seed agent definitions and pipelines on first load
+            SeedDefaults(_cached);
 
             return _cached;
         }
@@ -103,5 +107,49 @@ public sealed class SettingsStore : ISettingsStore
         {
             // If migration fails, leave defaults.
         }
+
+        // Migrate legacy AgentProfiles into AgentDefinitions
+        MigrateAgentProfiles(config);
+    }
+
+    /// <summary>
+    /// Migrates data from legacy <c>AgentProfiles</c> into <c>AgentDefinitions</c>.
+    /// Applies model/temperature/prompt overrides from profiles to matching definitions.
+    /// </summary>
+    private static void MigrateAgentProfiles(Doc2CodeConfig config)
+    {
+#pragma warning disable CS0618
+        if (config.AgentProfiles.Count == 0) return;
+
+        // Ensure agent definitions are seeded
+        SeedDefaults(config);
+
+        foreach (var profile in config.AgentProfiles)
+        {
+            var def = config.AgentDefinitions.FirstOrDefault(
+                d => d.AgentKey.Equals(profile.AgentKey, StringComparison.OrdinalIgnoreCase));
+            if (def is null) continue;
+
+            if (!string.IsNullOrWhiteSpace(profile.ModelId))
+                def.ModelId = profile.ModelId;
+            def.Temperature = profile.Creativity;
+            if (!string.IsNullOrWhiteSpace(profile.SystemPrompt))
+                def.SystemPrompt = profile.SystemPrompt;
+            if (!string.IsNullOrWhiteSpace(profile.Instruction))
+                def.UserPromptTemplate = profile.Instruction;
+        }
+#pragma warning restore CS0618
+    }
+
+    /// <summary>
+    /// Seeds built-in agent definitions and pipeline templates if they are empty.
+    /// </summary>
+    private static void SeedDefaults(Doc2CodeConfig config)
+    {
+        if (config.AgentDefinitions.Count == 0)
+            config.AgentDefinitions = BuiltInAgentDefinitions.Create();
+
+        if (config.Pipelines.Count == 0)
+            config.Pipelines = PipelineTemplates.CreateAll();
     }
 }

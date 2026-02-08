@@ -14,7 +14,10 @@ public sealed class ConfigurationDto
 
     public string LlmEndpoint { get; set; } = "http://localhost:11434";
     public string PreferredModel { get; set; } = "ministral-3";
+    [Obsolete("Use AgentDefinitions instead.")]
     public List<AgentProfile> AgentProfiles { get; set; } = [];
+    public List<AgentDefinition> AgentDefinitions { get; set; } = [];
+    public List<PipelineDefinition> Pipelines { get; set; } = [];
     public string? GitHubToken { get; set; }
     public string? GitHubOwner { get; set; }
     public Dictionary<string, bool> EnabledTools { get; set; } = new();
@@ -39,4 +42,14 @@ public sealed class TestConnectionResult
 {
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>Bundle used for exporting/importing settings (excludes secrets).</summary>
+public sealed class SettingsExportBundle
+{
+    public DateTime ExportedAt { get; set; } = DateTime.UtcNow;
+    public int Version { get; set; } = 1;
+    public List<AgentDefinition> AgentDefinitions { get; set; } = [];
+    public List<PipelineDefinition> Pipelines { get; set; } = [];
+    public Dictionary<string, bool> EnabledTools { get; set; } = new();
 }
