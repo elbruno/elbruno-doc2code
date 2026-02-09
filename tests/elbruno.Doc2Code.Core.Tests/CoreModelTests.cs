@@ -675,6 +675,30 @@ public class CoreModelTests
         def.IsBookend.Should().BeFalse();
     }
 
+    // --- PipelineEdge direction tests ---
+
+    [Fact]
+    public void PipelineEdge_SourceAndTarget_MustNotBeEmpty()
+    {
+        var edge = new PipelineEdge
+        {
+            SourceStepId = "step-a",
+            TargetStepId = "step-b",
+            OutputKeyMapping = "analysis"
+        };
+        edge.SourceStepId.Should().NotBeNullOrWhiteSpace();
+        edge.TargetStepId.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void PipelineEdge_DefaultValues_AreEmptyStrings()
+    {
+        var edge = new PipelineEdge();
+        edge.SourceStepId.Should().BeEmpty();
+        edge.TargetStepId.Should().BeEmpty();
+        edge.OutputKeyMapping.Should().BeEmpty();
+    }
+
     // --- SettingsExportBundle ---
 
     [Fact]

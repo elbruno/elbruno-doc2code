@@ -118,8 +118,12 @@ Backend HTTP + SignalR:
 Blazor frontend with Bootstrap 5 (dark terminal theme). Features:
 - **Home page** — dynamic pipeline viewer that renders the active pipeline's DAG
   topology with parallel step indicators, connected via SignalR for real-time updates
-- **Pipeline Designer** — drag-and-drop canvas for composing custom pipelines,
-  with agent repository sidebar, properties inspector, undo/redo, and export/import
+- **Pipeline Designer** — drag-and-drop canvas for composing custom pipelines.
+  Uses a connector-port interaction model where each node has visible output (●) and
+  input (●) ports. Users drag from an output port to an input port to create directed
+  edges. Includes agent repository sidebar, properties inspector, undo/redo, edge
+  labels on the canvas, bookend node styling (START/END badges), and export/import.
+  See [Pipeline Designer Guide](pipeline-designer.md) for details.
 - **Settings page** — configuration, tool toggles, agent definitions (replacing
   legacy agent profiles), and **Test Connection** buttons for all four LLM providers
 - Auto-scrolling console log panel with streaming agent output
