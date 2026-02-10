@@ -524,6 +524,8 @@ else
             @* Toolbar *@
             <div class="pd-toolbar">
                 <button class="pd-toolbar-btn pd-btn-accent" @onclick="SavePipelineAsync">&#x1F4BE; Save</button>
+                <button class="pd-toolbar-btn" @onclick="OpenSaveAs" title="Save a copy with a new name">Save As</button>
+                <button class="pd-toolbar-btn" @onclick="OpenRename" title="Rename this pipeline">Rename</button>
 
                 <select class="pd-pipeline-select" @onchange="OnPipelineDropdownChanged">
                     @foreach (var p in _pipelines)
@@ -566,6 +568,28 @@ else
                 <button class="pd-toolbar-btn" @onclick="ExportPipelineJsonAsync">Export JSON</button>
                 <button class="pd-toolbar-btn" @onclick="() => _showImportInput = !_showImportInput">Import JSON</button>
             </div>
+
+            @if (_showSaveAsInput)
+            {
+                <div style="padding: 0.5rem 0.8rem; background: #0d1117; border-bottom: 1px solid #1a4d2e; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="color: #33ff77; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Save As:</span>
+                    <input type="text" class="pd-prop-input" style="max-width: 20rem;" @bind="_saveAsName"
+                           placeholder="New pipeline name" @onkeydown="HandleSaveAsKeyDown" />
+                    <button class="pd-toolbar-btn pd-btn-accent" @onclick="ConfirmSaveAsAsync">Save</button>
+                    <button class="pd-toolbar-btn" @onclick="CancelSaveAs">Cancel</button>
+                </div>
+            }
+
+            @if (_showRenameInput)
+            {
+                <div style="padding: 0.5rem 0.8rem; background: #0d1117; border-bottom: 1px solid #1a4d2e; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="color: #33ff77; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;">Rename:</span>
+                    <input type="text" class="pd-prop-input" style="max-width: 20rem;" @bind="_renameName"
+                           placeholder="Pipeline name" @onkeydown="HandleRenameKeyDown" />
+                    <button class="pd-toolbar-btn pd-btn-accent" @onclick="ConfirmRenameAsync">Rename</button>
+                    <button class="pd-toolbar-btn" @onclick="CancelRename">Cancel</button>
+                </div>
+            }
 
             @if (_isConnectMode)
             {

@@ -3,6 +3,7 @@ namespace elbruno.Doc2Code.Web.Components.Pages;
 
 using System.Text.Json;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using elbruno.Doc2Code.Core.Models;
 using elbruno.Doc2Code.Core.Pipeline;
@@ -34,6 +35,11 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     private AgentDefinition? _editingAgent;
     private bool _showImportInput;
     private string _importJson = "";
+    // ── Save As / Rename ────────────────────────────────────────────
+    private bool _showSaveAsInput;
+    private string _saveAsName = "";
+    private bool _showRenameInput;
+    private string _renameName = "";
     // ── Connect mode ────────────────────────────────────────────────────
     private bool _isConnectMode;
     private string? _connectSourceStepId;
@@ -262,6 +268,95 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
             }
         }
         catch (Exception ex) { ShowStatus("Clone failed: " + ex.Message, isError: true); }
+    }
+
+    // ── Save As ─────────────────────────────────────────────────────
+
+    private void OpenSaveAs()
+    {
+        if (_activePipeline is null) return;
+        _saveAsName = _activePipeline.Name + " (copy)";
+        _showSaveAsInput = true;
+        _showRenameInput = false;
+    }
+
+    private async Task ConfirmSaveAsAsync()
+    {
+        if (_activePipeline is null || string.IsNullOrWhiteSpace(_saveAsName)) return;
+        try
+        {
+            var json = JsonSerializer.Serialize(_activePipeline, _jsonOpts);
+            var cloned = JsonSerializer.Deserialize<PipelineDefinition>(json, _jsonOpts);
+            if (cloned is null) { ShowStatus("Save As failed: could not clone pipeline.", isError: true); return; }
+
+            cloned.Id = Guid.NewGuid().ToString();
+            cloned.Name = _saveAsName.Trim();
+            cloned.IsDefault = false;
+            cloned.IsActive = false;
+            cloned.Version = 1;
+            cloned.CreatedAtUtc = DateTime.UtcNow;
+            cloned.UpdatedAtUtc = DateTime.UtcNow;
+
+            var created = await SettingsClient.CreatePipelineAsync(cloned);
+            if (created is not null)
+            {
+                _pipelines.Add(created);
+                await SelectPipelineAsync(created);
+                ShowStatus($"Pipeline saved as '{created.Name}'.");
+            }
+        }
+        catch (Exception ex) { ShowStatus("Save As failed: " + ex.Message, isError: true); }
+        _showSaveAsInput = false;
+        _saveAsName = "";
+    }
+
+    private void CancelSaveAs()
+    {
+        _showSaveAsInput = false;
+        _saveAsName = "";
+    }
+
+    // ── Rename ──────────────────────────────────────────────────────
+
+    private void OpenRename()
+    {
+        if (_activePipeline is null) return;
+        _renameName = _activePipeline.Name;
+        _showRenameInput = true;
+        _showSaveAsInput = false;
+    }
+
+    private async Task ConfirmRenameAsync()
+    {
+        if (_activePipeline is null || string.IsNullOrWhiteSpace(_renameName)) return;
+        try
+        {
+            _activePipeline.Name = _renameName.Trim();
+            _activePipeline.UpdatedAtUtc = DateTime.UtcNow;
+            await SettingsClient.UpdatePipelineAsync(_activePipeline.Id, _activePipeline);
+            ShowStatus($"Pipeline renamed to '{_activePipeline.Name}'.");
+        }
+        catch (Exception ex) { ShowStatus("Rename failed: " + ex.Message, isError: true); }
+        _showRenameInput = false;
+        _renameName = "";
+    }
+
+    private void CancelRename()
+    {
+        _showRenameInput = false;
+        _renameName = "";
+    }
+
+    private async Task HandleSaveAsKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await ConfirmSaveAsAsync();
+        else if (e.Key == "Escape") CancelSaveAs();
+    }
+
+    private async Task HandleRenameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await ConfirmRenameAsync();
+        else if (e.Key == "Escape") CancelRename();
     }
 
     private async Task DeletePipelineAsync()
