@@ -13,6 +13,9 @@ window.pipelineCanvas = (function () {
     let _connectState = { sourceStepId: null, active: false };
     let _tempLine = null;
 
+    // ── Selected edge state ──
+    let _selectedEdge = null;  // { sourceStepId, targetStepId }
+
     // ── Bookend step ID constants ──
     var STEP_DOCUMENT_INPUT = "step-document-input";
     var STEP_GENERATED_ASSETS = "step-generated-assets";
@@ -105,7 +108,40 @@ window.pipelineCanvas = (function () {
         container.querySelectorAll(".pd-node").forEach(function (n) {
             n.classList.toggle("pd-node-selected", n.dataset.stepId === stepId);
         });
+        _selectedEdge = null;
+        _redrawEdges();
         if (_dotNetRef) _dotNetRef.invokeMethodAsync("OnNodeSelectedJs", stepId);
+    }
+
+    function _selectEdge(sourceStepId, targetStepId) {
+        _selectedEdge = { sourceStepId: sourceStepId, targetStepId: targetStepId };
+        // Deselect any selected node
+        var container = document.getElementById(_containerId);
+        if (container) {
+            container.querySelectorAll(".pd-node-selected").forEach(function (n) {
+                n.classList.remove("pd-node-selected");
+            });
+        }
+        _redrawEdges();
+        if (_dotNetRef) _dotNetRef.invokeMethodAsync("OnEdgeSelectedJs", sourceStepId, targetStepId);
+    }
+
+    function _deselectAll() {
+        _selectedEdge = null;
+        var container = document.getElementById(_containerId);
+        if (container) {
+            container.querySelectorAll(".pd-node-selected").forEach(function (n) {
+                n.classList.remove("pd-node-selected");
+            });
+        }
+        _redrawEdges();
+        if (_dotNetRef) _dotNetRef.invokeMethodAsync("OnDeselectAllJs");
+    }
+
+    function _deleteSelectedEdge() {
+        if (!_selectedEdge || !_dotNetRef) return;
+        _dotNetRef.invokeMethodAsync("OnEdgeDeletedJs", _selectedEdge.sourceStepId, _selectedEdge.targetStepId);
+        _selectedEdge = null;
     }
 
     // ── Node drag ──
@@ -269,9 +305,30 @@ window.pipelineCanvas = (function () {
             var pathData = "M " + startX + " " + startY +
                 " C " + midX + " " + startY + ", " + midX + " " + endY + ", " + endX + " " + endY;
 
+            var isSelected = _selectedEdge &&
+                _selectedEdge.sourceStepId === edge.sourceStepId &&
+                _selectedEdge.targetStepId === edge.targetStepId;
+
+            // Invisible wide hit-area path for easier clicking
+            var hitEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            hitEl.setAttribute("d", pathData);
+            hitEl.setAttribute("fill", "none");
+            hitEl.setAttribute("stroke", "transparent");
+            hitEl.setAttribute("stroke-width", "14");
+            hitEl.setAttribute("cursor", "pointer");
+            hitEl.setAttribute("pointer-events", "stroke");
+            (function (eSrc, eTgt) {
+                hitEl.addEventListener("click", function (ev) {
+                    ev.stopPropagation();
+                    _selectEdge(eSrc, eTgt);
+                });
+            })(edge.sourceStepId, edge.targetStepId);
+            _svgEl.appendChild(hitEl);
+
             var pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
             pathEl.setAttribute("d", pathData);
-            pathEl.setAttribute("class", "pd-edge-path");
+            pathEl.setAttribute("class", isSelected ? "pd-edge-path pd-edge-selected" : "pd-edge-path");
+            pathEl.setAttribute("pointer-events", "none");
             _svgEl.appendChild(pathEl);
 
             // arrowhead triangle at the end
@@ -285,8 +342,9 @@ window.pipelineCanvas = (function () {
             var arrowPath = "M " + endX + " " + endY + " L " + ax1 + " " + ay1 + " L " + ax2 + " " + ay2 + " Z";
             var arrowEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
             arrowEl.setAttribute("d", arrowPath);
-            arrowEl.setAttribute("fill", "#33ff77");
+            arrowEl.setAttribute("fill", isSelected ? "#ff6b6b" : "#33ff77");
             arrowEl.setAttribute("stroke", "none");
+            arrowEl.setAttribute("pointer-events", "none");
             _svgEl.appendChild(arrowEl);
 
             // Edge label (OutputKeyMapping) at Bézier midpoint
@@ -297,11 +355,33 @@ window.pipelineCanvas = (function () {
                 textEl.setAttribute("x", labelX);
                 textEl.setAttribute("y", labelY);
                 textEl.setAttribute("text-anchor", "middle");
-                textEl.setAttribute("fill", "#6e7681");
+                textEl.setAttribute("fill", isSelected ? "#ff6b6b" : "#6e7681");
                 textEl.setAttribute("font-size", "10");
                 textEl.setAttribute("font-family", "'Cascadia Code', monospace");
+                textEl.setAttribute("pointer-events", "none");
                 textEl.textContent = edge.outputKeyMapping;
                 _svgEl.appendChild(textEl);
+
+                // Delete badge on selected edge
+                if (isSelected) {
+                    var delX = labelX + 4;
+                    var delY = labelY + 14;
+                    var delText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    delText.setAttribute("x", delX);
+                    delText.setAttribute("y", delY);
+                    delText.setAttribute("text-anchor", "middle");
+                    delText.setAttribute("fill", "#ff6b6b");
+                    delText.setAttribute("font-size", "10");
+                    delText.setAttribute("font-family", "'Cascadia Code', monospace");
+                    delText.setAttribute("pointer-events", "visiblePainted");
+                    delText.setAttribute("cursor", "pointer");
+                    delText.textContent = "\u2716 disconnect";
+                    delText.addEventListener("click", function (ev) {
+                        ev.stopPropagation();
+                        _deleteSelectedEdge();
+                    });
+                    _svgEl.appendChild(delText);
+                }
             }
         });
     }
@@ -324,7 +404,34 @@ window.pipelineCanvas = (function () {
         // Create SVG overlay for edges
         _svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         _svgEl.setAttribute("class", "pd-svg-overlay");
+        _svgEl.style.pointerEvents = "none";
         container.appendChild(_svgEl);
+
+        // Click on empty canvas deselects everything
+        container.addEventListener("click", function (ev) {
+            if (ev.target === container || ev.target === _svgEl) {
+                _deselectAll();
+            }
+        });
+
+        // Keyboard handler for Delete/Backspace to remove selected edge
+        if (!container._keyHandler) {
+            container._keyHandler = function (ev) {
+                if (ev.key === "Delete" || ev.key === "Backspace") {
+                    // Don't intercept if user is typing in an input
+                    var tag = (ev.target.tagName || "").toLowerCase();
+                    if (tag === "input" || tag === "textarea" || tag === "select") return;
+                    if (_selectedEdge) {
+                        ev.preventDefault();
+                        _deleteSelectedEdge();
+                    }
+                }
+                if (ev.key === "Escape") {
+                    _deselectAll();
+                }
+            };
+            document.addEventListener("keydown", container._keyHandler);
+        }
 
         // Store edges on container for later redraws
         container._edges = pipeline.edges || [];

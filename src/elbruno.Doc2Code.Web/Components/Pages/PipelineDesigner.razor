@@ -125,6 +125,12 @@
         fill: none;
         stroke: #1a6b3a;
         stroke-width: 2;
+        pointer-events: none;
+    }
+    .pd-edge-path.pd-edge-selected {
+        stroke: #ff6b6b;
+        stroke-width: 3;
+        filter: drop-shadow(0 0 4px rgba(255, 107, 107, 0.5));
     }
     .pd-edge-arrow {
         fill: #1a6b3a;
@@ -545,6 +551,10 @@ else
                 <button class="pd-toolbar-btn @(_isConnectMode ? "pd-btn-connect-active" : "")" @onclick="ToggleConnectMode" title="Toggle connect mode to create edges between steps">
                     @(_isConnectMode ? "\u2716 Cancel" : "\u2194 Connect")
                 </button>
+                <button class="pd-toolbar-btn pd-btn-danger" @onclick="DisconnectSelectedEdgeAsync"
+                        disabled="@(_selectedEdge is null)" title="Disconnect the selected edge (or press Delete)">
+                    &#x2716; Disconnect
+                </button>
 
                 <div class="pd-toolbar-sep"></div>
 
@@ -620,9 +630,34 @@ else
 
             @if (_selectedStep is null)
             {
-                <div style="color: #6e7681; font-size: 0.75rem; margin-top: 0.8rem;">
-                    Select a step on the canvas to inspect its properties.
-                </div>
+                @if (_selectedEdge is not null)
+                {
+                    @* ── Selected Edge Details ── *@
+                    <div class="pd-prop-label">Connection</div>
+                    <div class="pd-prop-value" style="margin-bottom: 0.3rem;">
+                        @ResolveStepLabel(_selectedEdge.SourceStepId)
+                        <span class="pd-edge-arrow-label">&#x2192;</span>
+                        @ResolveStepLabel(_selectedEdge.TargetStepId)
+                    </div>
+
+                    <div class="pd-prop-label">Output Key</div>
+                    <input type="text" class="pd-prop-input" @bind="_selectedEdge.OutputKeyMapping" placeholder="key" />
+
+                    <div style="margin-top: 1.2rem;">
+                        <button class="pd-toolbar-btn pd-btn-danger" style="width: 100%;" @onclick="DisconnectSelectedEdgeAsync">
+                            &#x2716; Disconnect These Agents
+                        </button>
+                    </div>
+                    <div style="color: #6e7681; font-size: 0.68rem; text-align: center; margin-top: 0.4rem;">
+                        Or press <kbd style="background: #161b22; border: 1px solid #1a4d2e; padding: 0.1rem 0.3rem; border-radius: 2px;">Delete</kbd> to disconnect.
+                    </div>
+                }
+                else
+                {
+                    <div style="color: #6e7681; font-size: 0.75rem; margin-top: 0.8rem;">
+                        Select a step or click an edge on the canvas to inspect its properties.
+                    </div>
+                }
             }
             else
             {

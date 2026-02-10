@@ -23,6 +23,7 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
     private PipelineDefinition? _activePipeline;
     private PipelineStepDefinition? _selectedStep;
     private AgentDefinition? _selectedStepAgent;
+    private PipelineEdge? _selectedEdge;
     private readonly List<PipelineDefinition> _templates = PipelineTemplates.CreateAll();
 
     // ── UI state ────────────────────────────────────────────────────
@@ -159,10 +160,47 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
             return;
         }
 
+        _selectedEdge = null;
         _selectedStep = _activePipeline.Steps.Find(s => s.StepId == stepId);
         _selectedStepAgent = _selectedStep is not null
             ? _agents.Find(a => a.AgentKey == _selectedStep.AgentKey)
             : null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable("OnEdgeSelectedJs")]
+    public void HandleEdgeSelected(string sourceStepId, string targetStepId)
+    {
+        if (_activePipeline is null) return;
+        _selectedStep = null;
+        _selectedStepAgent = null;
+        _selectedEdge = _activePipeline.Edges.Find(e =>
+            e.SourceStepId == sourceStepId && e.TargetStepId == targetStepId);
+        if (_selectedEdge is not null)
+            ShowStatus($"Edge selected: {ResolveStepLabel(sourceStepId)} \u2192 {ResolveStepLabel(targetStepId)} — press Delete to disconnect.");
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable("OnEdgeDeletedJs")]
+    public void HandleEdgeDeletedFromCanvas(string sourceStepId, string targetStepId)
+    {
+        if (_activePipeline is null) return;
+        var edge = _activePipeline.Edges.Find(e =>
+            e.SourceStepId == sourceStepId && e.TargetStepId == targetStepId);
+        if (edge is null) return;
+        PushUndo();
+        _activePipeline.Edges.Remove(edge);
+        _selectedEdge = null;
+        ShowStatus($"Disconnected: {ResolveStepLabel(sourceStepId)} \u2192 {ResolveStepLabel(targetStepId)}");
+        InvokeAsync(async () => { StateHasChanged(); await RenderCanvasAsync(); });
+    }
+
+    [JSInvokable("OnDeselectAllJs")]
+    public void HandleDeselectAll()
+    {
+        _selectedStep = null;
+        _selectedStepAgent = null;
+        _selectedEdge = null;
         InvokeAsync(StateHasChanged);
     }
 
@@ -598,7 +636,18 @@ public sealed partial class PipelineDesigner : ComponentBase, IAsyncDisposable
         if (_activePipeline is null) return;
         PushUndo();
         _activePipeline.Edges.Remove(edge);
+        if (_selectedEdge == edge) _selectedEdge = null;
         ShowStatus($"Edge removed: {ResolveStepLabel(edge.SourceStepId)} \u2192 {ResolveStepLabel(edge.TargetStepId)}");
+        await RenderCanvasAsync();
+    }
+
+    private async Task DisconnectSelectedEdgeAsync()
+    {
+        if (_selectedEdge is null || _activePipeline is null) return;
+        PushUndo();
+        _activePipeline.Edges.Remove(_selectedEdge);
+        ShowStatus($"Disconnected: {ResolveStepLabel(_selectedEdge.SourceStepId)} \u2192 {ResolveStepLabel(_selectedEdge.TargetStepId)}");
+        _selectedEdge = null;
         await RenderCanvasAsync();
     }
 
