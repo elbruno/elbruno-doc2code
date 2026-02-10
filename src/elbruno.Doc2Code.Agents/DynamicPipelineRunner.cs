@@ -126,6 +126,14 @@ public sealed class DynamicPipelineRunner : IGenerationPipeline
 
                 foreach (var step in level)
                 {
+                    // Bookend steps (DocumentInput / GeneratedAssets) are visual-only;
+                    // skip them — the data bag is already seeded before the loop.
+                    if (step.IsBookend)
+                    {
+                        stepIndex++;
+                        continue;
+                    }
+
                     var currentStepIndex = stepIndex++;
                     var agent = _agentFactory.Create(agentLookup[step.AgentKey]);
 

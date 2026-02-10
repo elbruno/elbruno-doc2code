@@ -95,6 +95,9 @@ public sealed class BuiltInAgentAdapter : IDynamicAgent
                 return bag;
             }),
 
+            // Bookend pseudo-agents — no-op pass-through
+            "DocumentInput" or "GeneratedAssets" => new BuiltInAgentAdapter(agentKey, agentKey, (bag, _, _) => Task.FromResult(bag)),
+
             _ => throw new ArgumentException($"Unknown built-in agent key: '{agentKey}'", nameof(agentKey))
         };
     }
