@@ -52,6 +52,7 @@ Settings page. The right model depends on available GPU memory.
 | Model | Min VRAM | Pull Command | Notes |
 |-------|----------|-------------|-------|
 | `ministral-3` | 4 GB | `ollama pull ministral-3` | General-purpose default; runs on most hardware |
+| `llama3.2` | 4 GB | `ollama pull llama3.2` | Meta Llama 3.2 — compact, fast, strong general reasoning |
 | `devstral-small-2` | 8 GB | `ollama pull devstral-small:24b` | Mistral's code-optimised variant; better at structured output |
 | `qwen3-coder-next` | 12 GB | `ollama pull qwen3:32b` | Strong multi-language code generation; needs more VRAM |
 

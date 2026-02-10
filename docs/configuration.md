@@ -13,7 +13,7 @@
 | `SourceControl.Token` | `string?` | `null` | GitHub PAT for publishing |
 | `SourceControl.OwnerOrOrg` | `string?` | `null` | GitHub target owner/org |
 | `EnabledTools` | `Dictionary<string, bool>` | See below | Tool toggle map |
-| `SuggestedModels` | `List<ModelSuggestion>` | 3 defaults | Informational model recommendations |
+| `SuggestedModels` | `List<ModelSuggestion>` | 4 defaults | Informational model recommendations |
 
 ## Provider Modes
 

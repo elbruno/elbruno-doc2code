@@ -48,6 +48,7 @@ public sealed class Doc2CodeConfig
     public List<ModelSuggestion> SuggestedModels { get; init; } =
     [
         new() { Name = "ministral-3", MinVramGb = 4, Description = "General-purpose, works on most hardware", OllamaPullCommand = "ollama pull ministral-3" },
+        new() { Name = "llama3.2", MinVramGb = 4, Description = "Meta Llama 3.2 — compact, fast, strong general reasoning", OllamaPullCommand = "ollama pull llama3.2" },
         new() { Name = "devstral-small-2", MinVramGb = 8, Description = "Mistral code-optimized model", OllamaPullCommand = "ollama pull devstral-small:24b" },
         new() { Name = "qwen3-coder-next", MinVramGb = 12, Description = "Strong multi-language code generation", OllamaPullCommand = "ollama pull qwen3:32b" },
     ];

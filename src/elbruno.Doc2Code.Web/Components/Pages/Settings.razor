@@ -419,13 +419,16 @@ else
                                @bind="_currentConfig.Ollama.Endpoint" />
 
                         <label class="term-label" for="cfgOllamaModel">Model Name</label>
-                        <select id="cfgOllamaModel" class="form-select term-select"
-                                @bind="_currentConfig.Ollama.Model">
-                            @foreach (var modelOpt in _modelChoices)
+                        <input type="text" id="cfgOllamaModel" class="form-control term-input"
+                               list="ollamaModelList"
+                               @bind="_currentConfig.Ollama.Model"
+                               placeholder="Type or select a model name" />
+                        <datalist id="ollamaModelList">
+                            @foreach (var rec in _suggestedModels)
                             {
-                                <option value="@modelOpt">@modelOpt</option>
+                                <option value="@rec.Name">@rec.Name — @rec.Description (min @(rec.MinVramGb) GB)</option>
                             }
-                        </select>
+                        </datalist>
                     </div>
 
                     <div class="d-flex gap-2 mt-3">
@@ -462,7 +465,7 @@ else
                                 </tr>
                                 <tr>
                                     <td style="padding: 0.25rem 0.5rem 0.25rem 0; white-space: nowrap; vertical-align: top;">MODEL</td>
-                                    <td style="padding: 0.25rem 0;"><code>ministral-3</code> &nbsp;|&nbsp; <code>devstral-small:24b</code> &nbsp;|&nbsp; <code>qwen3:32b</code></td>
+                                    <td style="padding: 0.25rem 0;"><code>ministral-3</code> &nbsp;|&nbsp; <code>llama3.2</code> &nbsp;|&nbsp; <code>devstral-small:24b</code> &nbsp;|&nbsp; <code>qwen3:32b</code></td>
                                 </tr>
                             </table>
                             <hr style="border-color: #33ff77; opacity: 0.3; margin: 0.6rem 0;" />
